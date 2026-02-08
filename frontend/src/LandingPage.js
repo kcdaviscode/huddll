@@ -1,19 +1,21 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const LandingPage = ({ onEnter, onGoToLogin }) => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({ name: '', email: '', zip: '' });
 
   const handleSubmit = (e) => {
-  e.preventDefault();
-  console.log('Form submitted:', formData);
-  navigate('/signup', {
-    state: {
-      name: formData.name,
-      email: formData.email,
-      zipCode: formData.zipCode
-    }
-  });
-};
+    e.preventDefault();
+    console.log('Form submitted:', formData);
+    navigate('/signup', {
+      state: {
+        name: formData.name,
+        email: formData.email,
+        zipCode: formData.zip
+      }
+    });
+  };
 
   return (
     <div style={{
