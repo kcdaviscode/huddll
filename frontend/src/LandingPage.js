@@ -4,10 +4,16 @@ const LandingPage = ({ onEnter, onGoToLogin }) => {
   const [formData, setFormData] = useState({ name: '', email: '', zip: '' });
 
   const handleSubmit = (e) => {
-    e.preventDefault();
-    console.log("Form submitted:", formData);
-    onEnter();
-  };
+  e.preventDefault();
+  console.log('Form submitted:', formData);
+  navigate('/signup', {
+    state: {
+      name: formData.name,
+      email: formData.email,
+      zipCode: formData.zipCode
+    }
+  });
+};
 
   return (
     <div style={{

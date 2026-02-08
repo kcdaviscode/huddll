@@ -1,16 +1,21 @@
 import React, { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import './SignupPage.css';
 
-function SignupPage({ onSwitchToLogin }) {
+function SignupPage() {
+  const location = useLocation();
+  const prefillData = location.state || {};
+
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
+    name: prefillData.name || '',
+    email: prefillData.email || '',
     username: '',
     password: '',
     confirmPassword: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleChange = (e) => {
     setFormData({
@@ -54,23 +59,19 @@ function SignupPage({ onSwitchToLogin }) {
       if (response.ok) {
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
-        window.location.href = '/';
+        navigate('/map');
       } else {
         setError(data.error || 'Registration failed');
       }
     } catch (err) {
-      setError('Network error. Please try again.');
-      console.error('Signup error:', err);
+      setError('Network error. Please try again      setErrorsole.error('Signup error:', err);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="signup-page">
-      <div className="signup-container">
-        <div className="logo-section">
-          <svg viewBox="0 0 200 80" className="logo">
+    <div className="signup-p    <div className="signup-p    <divonta    <div className="signup-p    <div className="signup- <svg viewBox="0 0 200 8   className="logo">
             <path
               d="M 20 60 Q 20 20, 60 20 T 100 60"
               stroke="#4A90BA"
@@ -83,23 +84,21 @@ function SignupPage({ onSwitchToLogin }) {
           <p>Connect with people doing things you love</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="signup-form">
+        <form onSubmit={handleSubmit} className="       form">
           {error && <div className="error-message">{error}</div>}
 
           <div className="form-group">
             <label>Name</label>
             <input
               type="text"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              required
-              placeholder="Your name"
+              name="name                value={formData.name}
+              onChange={handleCh  ge}
+              required              required      Your name"
             />
           </div>
 
           <div className="form-group">
-            <label>Email</label>
+            <label>Email<  abel>
             <input
               type="email"
               name="email"
@@ -117,17 +116,14 @@ function SignupPage({ onSwitchToLogin }) {
               name="username"
               value={formData.username}
               onChange={handleChange}
-              required
-              placeholder="Choose a username"
-            />
-          </div>
+              require                              require                              require  iv>
 
           <div className="form-group">
-            <label>Password</label>
+            <label>Passwor  /label>
             <input
               type="password"
-              name="password"
-              value={formData.password}
+                me="password"
+              value={formDa a.password}
               onChange={handleChange}
               required
               placeholder="At least 6 characters"
@@ -138,7 +134,7 @@ function SignupPage({ onSwitchToLogin }) {
             <label>Confirm Password</label>
             <input
               type="password"
-              name="confirmPassword"
+              name="con  rmPassword"
               value={formData.confirmPassword}
               onChange={handleChange}
               required
@@ -147,11 +143,11 @@ function SignupPage({ onSwitchToLogin }) {
           </div>
 
           <button type="submit" className="signup-button" disabled={loading}>
-            {loading ? 'Creating account...' : 'Sign Up'}
+            {loa            {loa       t...' : 'Sign Up'}
           </button>
 
           <div className="login-link">
-            Already have an account? <a href="#" onClick={(e) => { e.preventDefault(); if (onSwitchToLogin) onSwitchToLogin(); }}>Log in</a>
+            Already have an account? <a href="/login">Log in</a>
           </div>
         </form>
       </div>
