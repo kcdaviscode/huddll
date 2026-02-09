@@ -64,7 +64,8 @@ function SignupPage() {
         setError(data.error || 'Registration failed');
       }
     } catch (err) {
-      setError('Network error. Please try again      setErrorsole.error('Signup error:', err);
+      setError('Network error. Please try again.');
+console.error('Signup error:', err);
     } finally {
       setLoading(false);
     }
