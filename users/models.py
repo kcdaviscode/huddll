@@ -9,6 +9,9 @@ class User(AbstractUser):
     profile_photo = models.ImageField(upload_to='profile_photos/', blank=True, null=True)
     date_of_birth = models.DateField(null=True, blank=True)
     city = models.CharField(max_length=100, blank=True)
+    phone_number = models.CharField(max_length=20, blank=True)  # NEW FIELD
+    status_message = models.CharField(max_length=200, default="Open to suggestions", blank=True)
+    status_updated_at = models.DateTimeField(auto_now=True)
 
     PRIVACY_CHOICES = [
         ('public', 'Public'),
@@ -33,6 +36,16 @@ class User(AbstractUser):
                     (today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day)
             )
         return None
+
+    @property
+    def events_attended(self):
+        from events.models import CheckIn
+        return CheckIn.objects.filter(user=self, verified=True).count()
+
+    @property
+    def events_hosted(self):
+        from events.models import Event
+        return Event.objects.filter(created_by=self).count()
 
 
 class Interest(models.Model):

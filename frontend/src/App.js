@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import LandingPage from './LandingPage';
 import LoginPage from './LoginPage';
 import SignupPage from './SignupPage';
@@ -8,20 +9,17 @@ import MyHuddllsPage from './MyHuddllsPage';
 import Navigation from './Navigation';
 import './App.css';
 
-function App() {
-  const [currentView, setCurrentView] = useState('landing');
-  const [activeTab, setActiveTab] = useState('events');
-  const [mapKey, setMapKey] = useState(0);
+// Protected route wrapper
+function ProtectedRoute({ children }) {
+  const token = localStorage.getItem('token');
+  return token ? children : <Navigate to="/login" />;
+}
 
-  // Check authentication on mount
-  React.useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      setCurrentView('map');
-    }
-  }, []);
+// Main layout with navigation
+function MainLayout() {
+  const [activeTab, setActiveTab] = React.useState('events');
+  const [mapKey, setMapKey] = React.useState(0);
 
-  // Force map to remount when switching back to it
   const handleTabChange = (newTab) => {
     if (newTab === 'events' && activeTab !== 'events') {
       setMapKey(prev => prev + 1);
@@ -29,39 +27,39 @@ function App() {
     setActiveTab(newTab);
   };
 
-  if (currentView === 'landing') {
-    return <LandingPage
-      onEnter={() => setCurrentView('signup')}
-      onGoToLogin={() => setCurrentView('login')}
-    />;
-  }
+  const handleLogout = () => {
+    localStorage.clear();
+    window.location.href = '/';
+  };
 
-  if (currentView === 'login') {
-    return <LoginPage onLoginSuccess={() => setCurrentView('map')} />;
-  }
+  return (
+    <div className="App">
+      {activeTab === 'events' && <MapView key={mapKey} />}
+      {activeTab === 'huddlls' && <MyHuddllsPage />}
+      {activeTab === 'profile' && <ProfilePage onLogout={handleLogout} />}
+      <Navigation activeTab={activeTab} setActiveTab={handleTabChange} />
+    </div>
+  );
+}
 
-  if (currentView === 'signup') {
-    return <SignupPage onSwitchToLogin={() => setCurrentView('login')} />;
-  }
-
-  if (currentView === 'map') {
-    return (
-      <div className="App">
-        {activeTab === 'events' && <MapView key={mapKey} />}
-        {activeTab === 'huddlls' && <MyHuddllsPage />}
-        {activeTab === 'profile' && (
-          <ProfilePage onLogout={() => {
-            localStorage.clear();
-            setCurrentView('landing');
-            setActiveTab('events');
-          }} />
-        )}
-        <Navigation activeTab={activeTab} setActiveTab={handleTabChange} />
-      </div>
-    );
-  }
-
-  return null;
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
+        <Route
+          path="/map"
+          element={
+            <ProtectedRoute>
+              <MainLayout />
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+    </Router>
+  );
 }
 
 export default App;

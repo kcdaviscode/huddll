@@ -1,547 +1,309 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Settings, Award, Grid, Edit2, Camera, MapPin, Check } from 'lucide-react';
 
-const ProfilePage = ({ onLogout }) => {
-  const [user, setUser] = useState(null);
-  const [activeTab, setActiveTab] = useState('vibes');
-  const [editing, setEditing] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    bio: ''
-  });
+const ProfilePage = () => {
+  const [profileData, setProfileData] = useState(null);
+  const [activeTab, setActiveTab] = useState('stamps');
+  const [editingStatus, setEditingStatus] = useState(false);
+  const [statusInput, setStatusInput] = useState('');
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    const userData = JSON.parse(localStorage.getItem('user') || '{}');
-    setUser(userData);
-    setFormData({
-      name: userData.name || '',
-      email: userData.email || '',
-      bio: userData.bio || 'Here for good vibes, not small talk.'
-    });
-  }, []);
+  const handleLogout = () => {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  navigate('/login');
+};
 
-  const handleSave = () => {
-    const updatedUser = { ...user, ...formData };
-    localStorage.setItem('user', JSON.stringify(updatedUser));
-    setUser(updatedUser);
-    setEditing(false);
+  const theme = {
+    bg: '#121212',
+    cardBg: '#1E1E1E',
+    headerBg: '#1E1E1E',
+    accent: '#4A90E2',
+    accentGlow: 'rgba(74, 144, 226, 0.3)',
+    success: '#34D399',
+    successGlow: 'rgba(52, 211, 153, 0.15)',
+    textMain: '#FFFFFF',
+    textSecondary: '#B0B3B8',
+    divider: '#2F3336',
+    inputBg: '#2C2C2C'
   };
 
-  if (!user) return null;
+  useEffect(() => {
+    fetchProfileData();
+  }, []);
+
+  const fetchProfileData = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:8000/api/users/profile-stats/', {
+        headers: { 'Authorization': `Token ${token}` }
+      });
+      const data = await response.json();
+      setProfileData(data);
+      setStatusInput(data.status_message || "Up for anything!");
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+      setLoading(false);
+    }
+  };
+
+  const handleStatusUpdate = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      await fetch('http://localhost:8000/api/users/update-status/', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Token ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status_message: statusInput })
+      });
+      setProfileData({ ...profileData, status_message: statusInput });
+      setEditingStatus(false);
+    } catch (error) {
+      console.error('Error updating status:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', backgroundColor: theme.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: theme.textSecondary }}>
+        Loading Profile...
+      </div>
+    );
+  }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      backgroundColor: '#F9FAFB',
-      paddingBottom: '100px',
-      fontFamily: 'system-ui, -apple-system, sans-serif'
-    }}>
+    <div style={{ minHeight: '100vh', backgroundColor: theme.bg, color: theme.textMain, paddingBottom: '80px', fontFamily: '-apple-system, sans-serif' }}>
 
-      {/* Header & Cover */}
-      <div style={{
-        position: 'relative',
-        height: '192px',
-        backgroundColor: '#0F172A',
-        overflow: 'hidden'
-      }}>
-        {/* Abstract Vibe Background */}
-        <div style={{ position: 'absolute', inset: 0, opacity: 0.4 }}>
-          <div style={{
-            position: 'absolute',
-            top: '-50%',
-            left: '-20%',
-            width: '80%',
-            height: '200%',
-            background: '#4A90BA',
-            borderRadius: '50%',
-            filter: 'blur(80px)',
-            opacity: 0.3,
-            animation: 'pulse 4s ease-in-out infinite'
-          }}></div>
-          <div style={{
-            position: 'absolute',
-            bottom: '-20%',
-            right: '-10%',
-            width: '60%',
-            height: '150%',
-            background: '#10B981',
-            borderRadius: '50%',
-            filter: 'blur(80px)',
-            opacity: 0.2
-          }}></div>
-        </div>
+      {/* HEADER */}
+      <div style={{ padding: '30px 20px 20px', textAlign: 'center', borderBottom: `1px solid ${theme.divider}`, position: 'relative' }}>
 
-        {/* Settings & Share Buttons */}
+        {/* Settings & Logout Icons */}
+<div style={{ position: 'absolute', top: '20px', right: '20px', display: 'flex', gap: '15px' }}>
+  <div style={{ cursor: 'pointer' }}>
+    <Settings size={20} color={theme.textSecondary} />
+  </div>
+  <div
+    onClick={handleLogout}
+    style={{
+      cursor: 'pointer',
+      padding: '8px 16px',
+      backgroundColor: theme.cardBg,
+      borderRadius: '20px',
+      fontSize: '13px',
+      fontWeight: '600',
+      color: theme.textSecondary,
+      border: `1px solid ${theme.divider}`,
+      transition: 'all 0.2s'
+    }}
+    onMouseEnter={(e) => {
+      e.currentTarget.style.backgroundColor = theme.divider;
+      e.currentTarget.style.color = theme.textMain;
+    }}
+    onMouseLeave={(e) => {
+      e.currentTarget.style.backgroundColor = theme.cardBg;
+      e.currentTarget.style.color = theme.textSecondary;
+    }}
+  >
+    Logout
+  </div>
+</div>
+
+        {/* Avatar */}
         <div style={{
-          position: 'absolute',
-          top: '24px',
-          right: '24px',
+          width: '100px',
+          height: '100px',
+          borderRadius: '50%',
+          backgroundColor: theme.accent,
+          margin: '0 auto 15px',
           display: 'flex',
-          gap: '12px'
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '36px',
+          fontWeight: '700',
+          boxShadow: `0 0 25px ${theme.accentGlow}`
         }}>
-          <button onClick={onLogout} style={{
-            padding: '8px',
-            background: 'rgba(255,255,255,0.1)',
-            backdropFilter: 'blur(10px)',
-            borderRadius: '50%',
-            border: 'none',
-            color: 'white',
-            cursor: 'pointer',
-            fontSize: '20px'
-          }}>⚙️</button>
+          {profileData?.name?.charAt(0).toUpperCase() || 'U'}
         </div>
-      </div>
 
-      {/* Profile Card (Floating) */}
-      <div style={{ padding: '0 24px', position: 'relative', marginTop: '-64px', marginBottom: '24px' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          {/* Avatar with Status Ring */}
-          <div style={{ position: 'relative' }}>
-            <div style={{
-              width: '128px',
-              height: '128px',
-              borderRadius: '50%',
-              border: '4px solid white',
-              boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
-              overflow: 'hidden',
-              backgroundColor: '#4A90BA',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '64px',
-              color: 'white',
-              fontWeight: 'bold'
-            }}>
-              {user.username?.charAt(0).toUpperCase() || '?'}
-            </div>
-            {/* Verified Badge */}
-            <div style={{
-              position: 'absolute',
-              bottom: '4px',
-              right: '4px',
-              backgroundColor: '#10B981',
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              border: '4px solid white',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontSize: '16px'
-            }} title="Verified Human">
-              ✓
-            </div>
-          </div>
+        {/* Name */}
+        <h2 style={{ fontSize: '24px', fontWeight: '700', margin: '0 0 10px' }}>
+          {profileData?.name || profileData?.username}
+        </h2>
 
-          <div style={{ textAlign: 'center', marginTop: '12px' }}>
-            <h1 style={{
-              fontSize: '24px',
-              fontWeight: '900',
-              margin: 0,
-              color: '#0F172A'
-            }}>{user.name || user.username}</h1>
-            <p style={{
-              color: '#64748B',
-              fontWeight: '500',
-              fontSize: '14px',
-              margin: '4px 0'
-            }}>📍 Baltimore, MD</p>
-
-            {/* Bio */}
-            <div style={{
-              marginTop: '16px',
-              padding: '8px 16px',
-              backgroundColor: 'white',
-              borderRadius: '16px',
-              border: '1px solid #E2E8F0',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-              display: 'inline-block'
-            }}>
-              <p style={{
-                fontSize: '14px',
-                fontWeight: '600',
-                color: '#334155',
-                margin: 0
-              }}>"{formData.bio}"</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Bento Stats Grid */}
-      <div style={{ padding: '0 24px', marginBottom: '32px' }}>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: '12px'
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            padding: '12px',
-            borderRadius: '16px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-            border: '1px solid #E2E8F0',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            aspectRatio: '1'
-          }}>
-            <span style={{ fontSize: '24px', fontWeight: '900', color: '#4A90BA' }}>0</span>
-            <span style={{
-              fontSize: '10px',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              fontWeight: '700',
-              color: '#94A3B8',
-              marginTop: '4px'
-            }}>Huddlls</span>
-          </div>
-          <div style={{
-            backgroundColor: 'white',
-            padding: '12px',
-            borderRadius: '16px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-            border: '1px solid #E2E8F0',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            aspectRatio: '1'
-          }}>
-            <span style={{ fontSize: '24px', fontWeight: '900', color: '#0F172A' }}>0</span>
-            <span style={{
-              fontSize: '10px',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              fontWeight: '700',
-              color: '#94A3B8',
-              marginTop: '4px'
-            }}>Venues</span>
-          </div>
-          <div style={{
-            backgroundColor: 'white',
-            padding: '12px',
-            borderRadius: '16px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-            border: '1px solid #E2E8F0',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            aspectRatio: '1'
-          }}>
-            <span style={{ fontSize: '24px', fontWeight: '900', color: '#10B981' }}>100%</span>
-            <span style={{
-              fontSize: '10px',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              fontWeight: '700',
-              color: '#94A3B8',
-              marginTop: '4px'
-            }}>Safe</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Toggle Tabs */}
-      <div style={{ padding: '0 24px', marginBottom: '24px' }}>
-        <div style={{
-          display: 'flex',
-          padding: '4px',
-          backgroundColor: 'rgba(226, 232, 240, 0.5)',
-          borderRadius: '12px'
-        }}>
-          <button
-            onClick={() => setActiveTab('vibes')}
-            style={{
-              flex: 1,
-              padding: '8px',
-              fontSize: '14px',
-              fontWeight: '700',
-              borderRadius: '8px',
-              border: 'none',
-              cursor: 'pointer',
-              backgroundColor: activeTab === 'vibes' ? 'white' : 'transparent',
-              color: activeTab === 'vibes' ? '#0F172A' : '#94A3B8',
-              boxShadow: activeTab === 'vibes' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-              transition: 'all 0.2s'
-            }}
-          >
-            My Info
-          </button>
-          <button
-            onClick={() => setActiveTab('crew')}
-            style={{
-              flex: 1,
-              padding: '8px',
-              fontSize: '14px',
-              fontWeight: '700',
-              borderRadius: '8px',
-              border: 'none',
-              cursor: 'pointer',
-              backgroundColor: activeTab === 'crew' ? 'white' : 'transparent',
-              color: activeTab === 'crew' ? '#0F172A' : '#94A3B8',
-              boxShadow: activeTab === 'crew' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-              transition: 'all 0.2s'
-            }}
-          >
-            The Crew
-          </button>
-        </div>
-      </div>
-
-      {/* Content Area */}
-      <div style={{ padding: '0 24px' }}>
-
-        {activeTab === 'vibes' && (
-          <div style={{
-            backgroundColor: 'white',
-            padding: '20px',
-            borderRadius: '24px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-            border: '1px solid #E2E8F0'
-          }}>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '16px'
-            }}>
-              <h3 style={{
-                fontSize: '10px',
-                fontWeight: '900',
-                textTransform: 'uppercase',
-                letterSpacing: '0.1em',
-                color: '#94A3B8',
-                margin: 0
-              }}>Profile Info</h3>
-              {!editing && (
-                <button
-                  onClick={() => setEditing(true)}
-                  style={{
-                    padding: '6px 12px',
-                    backgroundColor: '#4A90BA',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontSize: '12px',
-                    fontWeight: '700',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Edit
+        {/* Status */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '25px' }}>
+            {editingStatus ? (
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: theme.inputBg, padding: '4px 8px', borderRadius: '20px' }}>
+                <input
+                  type="text"
+                  value={statusInput}
+                  onChange={(e) => setStatusInput(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleStatusUpdate()}
+                  style={{ backgroundColor: 'transparent', border: 'none', color: 'white', fontSize: '14px', outline: 'none', width: '160px', textAlign: 'center' }}
+                  placeholder="Set your vibe..."
+                  autoFocus
+                />
+                <button onClick={handleStatusUpdate} style={{ background: theme.success, border: 'none', padding: '4px', borderRadius: '50%', color: '#000', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                  <Check size={14} />
                 </button>
-              )}
-            </div>
-
-            {editing ? (
-              <div>
-                <div style={{ marginBottom: '12px' }}>
-                  <label style={{
-                    display: 'block',
-                    marginBottom: '4px',
-                    fontSize: '12px',
-                    fontWeight: '700',
-                    color: '#64748B'
-                  }}>Name</label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    style={{
-                      width: '100%',
-                      padding: '10px',
-                      border: '1px solid #E2E8F0',
-                      borderRadius: '8px',
-                      fontSize: '14px'
-                    }}
-                  />
-                </div>
-                <div style={{ marginBottom: '12px' }}>
-                  <label style={{
-                    display: 'block',
-                    marginBottom: '4px',
-                    fontSize: '12px',
-                    fontWeight: '700',
-                    color: '#64748B'
-                  }}>Email</label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
-                    style={{
-                      width: '100%',
-                      padding: '10px',
-                      border: '1px solid #E2E8F0',
-                      borderRadius: '8px',
-                      fontSize: '14px'
-                    }}
-                  />
-                </div>
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{
-                    display: 'block',
-                    marginBottom: '4px',
-                    fontSize: '12px',
-                    fontWeight: '700',
-                    color: '#64748B'
-                  }}>Bio</label>
-                  <textarea
-                    value={formData.bio}
-                    onChange={(e) => setFormData({...formData, bio: e.target.value})}
-                    placeholder="Tell people about yourself..."
-                    style={{
-                      width: '100%',
-                      padding: '10px',
-                      border: '1px solid #E2E8F0',
-                      borderRadius: '8px',
-                      fontSize: '14px',
-                      minHeight: '80px',
-                      resize: 'vertical'
-                    }}
-                  />
-                </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button
-                    onClick={handleSave}
-                    style={{
-                      flex: 1,
-                      padding: '10px',
-                      backgroundColor: '#4A90BA',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '8px',
-                      fontSize: '14px',
-                      fontWeight: '700',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Save
-                  </button>
-                  <button
-                    onClick={() => setEditing(false)}
-                    style={{
-                      flex: 1,
-                      padding: '10px',
-                      backgroundColor: '#E5E7EB',
-                      color: '#6B7280',
-                      border: 'none',
-                      borderRadius: '8px',
-                      fontSize: '14px',
-                      fontWeight: '700',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Cancel
-                  </button>
-                </div>
               </div>
             ) : (
-              <div>
-                <div style={{ marginBottom: '12px' }}>
-                  <div style={{
-                    fontSize: '12px',
-                    fontWeight: '700',
-                    color: '#64748B',
-                    marginBottom: '4px'
-                  }}>Name</div>
-                  <div style={{ fontSize: '14px', fontWeight: '600', color: '#0F172A' }}>
-                    {formData.name || 'Not set'}
-                  </div>
-                </div>
-                <div style={{ marginBottom: '12px' }}>
-                  <div style={{
-                    fontSize: '12px',
-                    fontWeight: '700',
-                    color: '#64748B',
-                    marginBottom: '4px'
-                  }}>Email</div>
-                  <div style={{ fontSize: '14px', fontWeight: '600', color: '#0F172A' }}>
-                    {formData.email}
-                  </div>
-                </div>
-                <div style={{ marginBottom: '12px' }}>
-                  <div style={{
-                    fontSize: '12px',
-                    fontWeight: '700',
-                    color: '#64748B',
-                    marginBottom: '4px'
-                  }}>Username</div>
-                  <div style={{ fontSize: '14px', fontWeight: '600', color: '#0F172A' }}>
-                    {user.username}
-                  </div>
-                </div>
+              <div
+                onClick={() => setEditingStatus(true)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 20px',
+                  borderRadius: '30px',
+                  backgroundColor: theme.successGlow,
+                  border: `1px solid ${theme.success}`,
+                  color: theme.success,
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                ⚡ {profileData?.status_message || "Set your status"}
+                <Edit2 size={12} style={{ opacity: 0.6 }} />
               </div>
             )}
+        </div>
 
-            {/* Logout Button */}
-            <button
-              onClick={onLogout}
-              style={{
-                width: '100%',
-                padding: '12px',
-                marginTop: '16px',
-                backgroundColor: '#EF4444',
-                color: 'white',
-                border: 'none',
-                borderRadius: '12px',
-                fontSize: '14px',
-                fontWeight: '700',
-                cursor: 'pointer'
-              }}
-            >
-              Log Out
-            </button>
-          </div>
-        )}
-
-        {activeTab === 'crew' && (
-          <div style={{
-            backgroundColor: 'white',
-            padding: '40px 20px',
-            borderRadius: '24px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-            border: '1px solid #E2E8F0',
-            minHeight: '200px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            textAlign: 'center'
-          }}>
-            <div style={{
-              backgroundColor: '#F9FAFB',
-              padding: '16px',
-              borderRadius: '50%',
-              marginBottom: '12px',
-              fontSize: '32px'
-            }}>
-              👥
+        {/* Stats */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '40px' }}>
+            <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '20px', fontWeight: '800' }}>{profileData?.events_attended || 0}</div>
+                <div style={{ fontSize: '12px', color: theme.textSecondary, fontWeight: '500' }}>Events</div>
             </div>
-            <p style={{ fontWeight: '700', color: '#0F172A', margin: '0 0 8px 0' }}>
-              Your Crew is Growing
-            </p>
-            <p style={{
-              fontSize: '14px',
-              color: '#64748B',
-              margin: 0,
-              maxWidth: '200px'
-            }}>
-              You've connected with 0 people from past Huddlls.
-            </p>
-          </div>
-        )}
-
+            <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '20px', fontWeight: '800' }}>{profileData?.events_hosted || 0}</div>
+                <div style={{ fontSize: '12px', color: theme.textSecondary, fontWeight: '500' }}>Hosted</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '20px', fontWeight: '800' }}>{profileData?.connections || 0}</div>
+                <div style={{ fontSize: '12px', color: theme.textSecondary, fontWeight: '500' }}>Friends</div>
+            </div>
+        </div>
       </div>
 
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 0.3; }
-          50% { opacity: 0.5; }
-        }
-      `}</style>
+      {/* TABS */}
+      <div style={{ display: 'flex', borderBottom: `1px solid ${theme.divider}`, backgroundColor: theme.cardBg }}>
+        <button
+          onClick={() => setActiveTab('stamps')}
+          style={{
+            flex: 1,
+            padding: '16px',
+            background: 'transparent',
+            border: 'none',
+            color: activeTab === 'stamps' ? theme.accent : theme.textSecondary,
+            borderBottom: activeTab === 'stamps' ? `2px solid ${theme.accent}` : 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            justifyContent: 'center',
+            gap: '8px',
+            alignItems: 'center',
+            fontWeight: '600',
+            fontSize: '14px'
+          }}
+        >
+          <Award size={18} /> Stamps
+        </button>
+        <button
+          onClick={() => setActiveTab('gallery')}
+          style={{
+            flex: 1,
+            padding: '16px',
+            background: 'transparent',
+            border: 'none',
+            color: activeTab === 'gallery' ? theme.accent : theme.textSecondary,
+            borderBottom: activeTab === 'gallery' ? `2px solid ${theme.accent}` : 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            justifyContent: 'center',
+            gap: '8px',
+            alignItems: 'center',
+            fontWeight: '600',
+            fontSize: '14px'
+          }}
+        >
+          <Grid size={18} /> Gallery
+        </button>
+      </div>
+
+      {/* CONTENT */}
+      <div style={{ padding: '20px' }}>
+
+        {activeTab === 'stamps' ? (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+             {/* Achievement Stamps */}
+             <div style={{ backgroundColor: theme.cardBg, padding: '20px', borderRadius: '16px', textAlign: 'center', border: `1px solid ${theme.divider}` }}>
+                <div style={{ fontSize: '32px', marginBottom: '10px' }}>👋</div>
+                <div style={{ fontWeight: '700', fontSize: '15px', color: theme.textMain }}>Newcomer</div>
+                <div style={{ fontSize: '12px', color: theme.textSecondary, marginTop: '4px' }}>Joined Huddll</div>
+             </div>
+
+             <div style={{ backgroundColor: theme.cardBg, padding: '20px', borderRadius: '16px', textAlign: 'center', border: `1px solid ${theme.divider}`, opacity: profileData?.events_attended > 0 ? 1 : 0.4 }}>
+                <div style={{ fontSize: '32px', marginBottom: '10px' }}>📍</div>
+                <div style={{ fontWeight: '700', fontSize: '15px', color: theme.textMain }}>First Check-in</div>
+                <div style={{ fontSize: '12px', color: theme.textSecondary, marginTop: '4px' }}>Attend 1 Event</div>
+             </div>
+
+             <div style={{ backgroundColor: theme.cardBg, padding: '20px', borderRadius: '16px', textAlign: 'center', border: `1px solid ${theme.divider}`, opacity: profileData?.events_hosted > 0 ? 1 : 0.4 }}>
+                <div style={{ fontSize: '32px', marginBottom: '10px' }}>🥂</div>
+                <div style={{ fontWeight: '700', fontSize: '15px', color: theme.textMain }}>The Host</div>
+                <div style={{ fontSize: '12px', color: theme.textSecondary, marginTop: '4px' }}>Host 1 Event</div>
+             </div>
+
+             <div style={{ backgroundColor: theme.cardBg, padding: '20px', borderRadius: '16px', textAlign: 'center', border: `1px dashed ${theme.divider}`, opacity: 0.3 }}>
+                <div style={{ fontSize: '32px', marginBottom: '10px' }}>🔒</div>
+                <div style={{ fontWeight: '700', fontSize: '15px', color: theme.textMain }}>Regular</div>
+                <div style={{ fontSize: '12px', color: theme.textSecondary, marginTop: '4px' }}>Visit same spot 3x</div>
+             </div>
+
+             <div style={{ backgroundColor: theme.cardBg, padding: '20px', borderRadius: '16px', textAlign: 'center', border: `1px dashed ${theme.divider}`, opacity: 0.3 }}>
+                <div style={{ fontSize: '32px', marginBottom: '10px' }}>🔒</div>
+                <div style={{ fontWeight: '700', fontSize: '15px', color: theme.textMain }}>Social Butterfly</div>
+                <div style={{ fontSize: '12px', color: theme.textSecondary, marginTop: '4px' }}>Make 10 Friends</div>
+             </div>
+
+             <div style={{ backgroundColor: theme.cardBg, padding: '20px', borderRadius: '16px', textAlign: 'center', border: `1px dashed ${theme.divider}`, opacity: 0.3 }}>
+                <div style={{ fontSize: '32px', marginBottom: '10px' }}>🔒</div>
+                <div style={{ fontWeight: '700', fontSize: '15px', color: theme.textMain }}>Explorer</div>
+                <div style={{ fontSize: '12px', color: theme.textSecondary, marginTop: '4px' }}>Visit 10 Venues</div>
+             </div>
+          </div>
+        ) : (
+          <div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px', marginBottom: '20px' }}>
+               <div style={{ aspectRatio: '1/1', backgroundColor: theme.cardBg, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px', flexDirection: 'column', gap: '8px' }}>
+                  <Camera size={24} color={theme.divider} />
+                  <div style={{ fontSize: '11px', color: theme.textSecondary }}>Coming Soon</div>
+               </div>
+               {[1,2,3,4,5].map(i => (
+                  <div key={i} style={{ aspectRatio: '1/1', backgroundColor: '#181818', borderRadius: '8px' }} />
+               ))}
+            </div>
+            <p style={{ textAlign: 'center', fontSize: '13px', color: theme.textSecondary }}>
+              Photo gallery coming soon - share memories from your events!
+            </p>
+          </div>
+        )}
+
+        {/* Location */}
+        <div style={{ marginTop: '30px', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: 0.5 }}>
+           <MapPin size={14} color={theme.textSecondary} />
+           <span style={{ fontSize: '13px', color: theme.textSecondary }}>
+             {profileData?.city && profileData.city !== 'Not set' ? profileData.city : 'Location not set'}
+           </span>
+        </div>
+
+      </div>
 
     </div>
   );

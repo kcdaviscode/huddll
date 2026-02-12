@@ -8,15 +8,18 @@ class EventListSerializer(serializers.ModelSerializer):
     created_by_name = serializers.CharField(source='created_by.username', read_only=True)
     attendee_count = serializers.IntegerField(read_only=True)
     interested_count = serializers.IntegerField(read_only=True)
+    interested_user_ids = serializers.SerializerMethodField()
 
     class Meta:
         model = Event
         fields = [
             'id', 'title', 'category', 'subcategory', 'venue_name', 'city',
             'latitude', 'longitude', 'start_time', 'end_time',
-            'image', 'created_by', 'created_by_name', 'attendee_count', 'interested_count'
+            'image', 'created_by', 'created_by_name', 'attendee_count', 'interested_count', 'interested_user_ids'
         ]
 
+    def get_interested_user_ids(self, obj):
+        return list(obj.interests.values_list('user_id', flat=True))
 
 class EventDetailSerializer(serializers.ModelSerializer):
     """Full serializer with all event details"""

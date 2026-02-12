@@ -27,7 +27,7 @@ class EventViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = Event.objects.filter(status='published').annotate(
             attendee_count=Count('checkins', distinct=True),
-            interested_count=Count('interests', distinct=True)  # CORRECT
+            interested_count=Count('interests', distinct=True)
         )
 
         category = self.request.query_params.get('category', None)
@@ -49,7 +49,9 @@ class EventViewSet(viewsets.ModelViewSet):
         return queryset.order_by('start_time')
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        event = serializer.save(created_by=self.request.user)
+        # Automatically mark creator as interested
+        EventInterest.objects.get_or_create(user=self.request.user, event=event)
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def check_in(self, request, pk=None):
@@ -98,6 +100,21 @@ class EventViewSet(viewsets.ModelViewSet):
                 {'error': 'Not marked as interested'},
                 status=status.HTTP_404_NOT_FOUND
             )
+
+    @action(detail=True, methods=['delete'], permission_classes=[IsAuthenticated])
+    def delete(self, request, pk=None):
+        """Delete an event (only by creator)"""
+        event = self.get_object()
+
+        # Check if user is the creator
+        if event.created_by != request.user:
+            return Response(
+                {'error': 'Only the event creator can delete this event'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        event.delete()
+        return Response({'message': 'Event deleted successfully'}, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['get'])
     def attendees(self, request, pk=None):

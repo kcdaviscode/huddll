@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import './SignupPage.css';
 
 function SignupPage() {
+  const navigate = useNavigate();
   const location = useLocation();
   const prefillData = location.state || {};
 
@@ -10,12 +11,13 @@ function SignupPage() {
     name: prefillData.name || '',
     email: prefillData.email || '',
     username: '',
+    phone_number: '',  // NEW
     password: '',
     confirmPassword: ''
   });
+
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
 
   const handleChange = (e) => {
     setFormData({
@@ -33,11 +35,6 @@ function SignupPage() {
       return;
     }
 
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters');
-      return;
-    }
-
     setLoading(true);
 
     try {
@@ -47,11 +44,12 @@ function SignupPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
           username: formData.username,
+          email: formData.email,
+          name: formData.name,
+          phone_number: formData.phone_number,  // NEW
           password: formData.password
-        }),
+        })
       });
 
       const data = await response.json();
@@ -65,14 +63,17 @@ function SignupPage() {
       }
     } catch (err) {
       setError('Network error. Please try again.');
-console.error('Signup error:', err);
+      console.error('Signup error:', err);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="signup-p    <div className="signup-p    <divonta    <div className="signup-p    <div className="signup- <svg viewBox="0 0 200 8   className="logo">
+    <div className="signup-page">
+      <div className="signup-container">
+        <div className="signup-header">
+          <svg viewBox="0 0 200 80" className="logo">
             <path
               d="M 20 60 Q 20 20, 60 20 T 100 60"
               stroke="#4A90BA"
@@ -81,25 +82,31 @@ console.error('Signup error:', err);
               strokeLinecap="round"
             />
           </svg>
-          <h1>Join Huddll</h1>
-          <p>Connect with people doing things you love</p>
+          <h1 className="signup-title">Join Huddll</h1>
+          <p className="signup-subtitle">Create your account to start connecting</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="       form">
-          {error && <div className="error-message">{error}</div>}
+        {error && (
+          <div className="error-message">
+            {error}
+          </div>
+        )}
 
+        <form onSubmit={handleSubmit} className="signup-form">
           <div className="form-group">
-            <label>Name</label>
+            <label>Full Name</label>
             <input
               type="text"
-              name="name                value={formData.name}
-              onChange={handleCh  ge}
-              required              required      Your name"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              required
+              placeholder="Enter your full name"
             />
           </div>
 
           <div className="form-group">
-            <label>Email<  abel>
+            <label>Email</label>
             <input
               type="email"
               name="email"
@@ -117,17 +124,34 @@ console.error('Signup error:', err);
               name="username"
               value={formData.username}
               onChange={handleChange}
-              require                              require                              require  iv>
+              required
+              placeholder="Choose a username"
+            />
+          </div>
 
           <div className="form-group">
-            <label>Passwor  /label>
+            <label>Phone Number</label>
+            <input
+              type="tel"
+              name="phone_number"
+              value={formData.phone_number}
+              onChange={handleChange}
+              placeholder="(123) 456-7890"
+            />
+            <small style={{ color: '#64748B', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+              Optional - helps friends find you
+            </small>
+          </div>
+
+          <div className="form-group">
+            <label>Password</label>
             <input
               type="password"
-                me="password"
-              value={formDa a.password}
+              name="password"
+              value={formData.password}
               onChange={handleChange}
               required
-              placeholder="At least 6 characters"
+              placeholder="Create a password"
             />
           </div>
 
@@ -135,22 +159,22 @@ console.error('Signup error:', err);
             <label>Confirm Password</label>
             <input
               type="password"
-              name="con  rmPassword"
+              name="confirmPassword"
               value={formData.confirmPassword}
               onChange={handleChange}
               required
-              placeholder="Re-enter password"
+              placeholder="Confirm your password"
             />
           </div>
 
           <button type="submit" className="signup-button" disabled={loading}>
-            {loa            {loa       t...' : 'Sign Up'}
+            {loading ? 'Creating Account...' : 'Sign Up'}
           </button>
-
-          <div className="login-link">
-            Already have an account? <a href="/login">Log in</a>
-          </div>
         </form>
+
+        <p className="login-link">
+          Already have an account? <a href="#" onClick={(e) => { e.preventDefault(); navigate('/login'); }}>Log in</a>
+        </p>
       </div>
     </div>
   );

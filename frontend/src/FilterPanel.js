@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 
 const FilterPanel = ({ filters, onFilterChange }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [pendingFilters, setPendingFilters] = useState(filters);
 
   const categories = [
     { id: 'food', label: 'Food & Drink', emoji: '🍔' },
@@ -66,6 +67,7 @@ const FilterPanel = ({ filters, onFilterChange }) => {
   };
 
   const timeOptions = [
+    { id: 'happening_now', label: '🔴 Happening Now' },
     { id: 'today', label: 'Today' },
     { id: 'tomorrow', label: 'Tomorrow' },
     { id: 'this_week', label: 'This Week' },
@@ -80,11 +82,12 @@ const FilterPanel = ({ filters, onFilterChange }) => {
   ];
 
   const distanceOptions = [
-    { id: '1', label: '1 mi' },
-    { id: '5', label: '5 mi' },
-    { id: '10', label: '10 mi' },
-    { id: '25', label: '25 mi' }
-  ];
+  { id: '1', label: '1 mi' },
+  { id: '5', label: '5 mi' },
+  { id: '10', label: '10 mi' },
+  { id: '25', label: '25 mi' },
+  { id: 'all', label: 'All' }
+];
 
   const colors = {
     bg: '#F8FAFC',
@@ -93,6 +96,7 @@ const FilterPanel = ({ filters, onFilterChange }) => {
     brandBlue: '#4A90BA',
     brandYellow: '#F59E0B',
     brandGrey: '#9CA3AF',
+    brandGreen: '#10B981',
     inputBg: '#F8FAFC',
     textMain: '#1E293B',
     textMuted: '#64748B',
@@ -100,43 +104,59 @@ const FilterPanel = ({ filters, onFilterChange }) => {
   };
 
   const toggleCategory = (categoryId) => {
-    const newCategories = filters.categories.includes(categoryId)
-      ? filters.categories.filter(c => c !== categoryId)
-      : [...filters.categories, categoryId];
+    const newCategories = pendingFilters.categories.includes(categoryId)
+      ? pendingFilters.categories.filter(c => c !== categoryId)
+      : [...pendingFilters.categories, categoryId];
 
-    // Clear subcategories when category changes
-    onFilterChange({ ...filters, categories: newCategories, subcategories: [] });
+    setPendingFilters({ ...pendingFilters, categories: newCategories, subcategories: [] });
   };
 
   const toggleSubcategory = (subcategoryId) => {
-    const newSubcategories = filters.subcategories?.includes(subcategoryId)
-      ? filters.subcategories.filter(s => s !== subcategoryId)
-      : [...(filters.subcategories || []), subcategoryId];
-    onFilterChange({ ...filters, subcategories: newSubcategories });
+    const newSubcategories = pendingFilters.subcategories?.includes(subcategoryId)
+      ? pendingFilters.subcategories.filter(s => s !== subcategoryId)
+      : [...(pendingFilters.subcategories || []), subcategoryId];
+    setPendingFilters({ ...pendingFilters, subcategories: newSubcategories });
   };
 
   const toggleStatus = (statusId) => {
-    const newStatuses = filters.statuses.includes(statusId)
-      ? filters.statuses.filter(s => s !== statusId)
-      : [...filters.statuses, statusId];
-    onFilterChange({ ...filters, statuses: newStatuses });
+    const newStatuses = pendingFilters.statuses.includes(statusId)
+      ? pendingFilters.statuses.filter(s => s !== statusId)
+      : [...pendingFilters.statuses, statusId];
+    setPendingFilters({ ...pendingFilters, statuses: newStatuses });
   };
+
+  const applyFilters = () => {
+    onFilterChange(pendingFilters);
+    setIsExpanded(false);
+  };
+
+  const clearFilters = () => {
+  const clearedFilters = {
+    categories: [],
+    subcategories: [],
+    timeRange: 'all',
+    statuses: ['proposed', 'pending', 'active'],
+    distance: 'all',
+    showMyEvents: false
+  };
+  setPendingFilters(clearedFilters);
+  onFilterChange(clearedFilters);
+};
 
   const activeFilterCount =
     filters.categories.length +
     (filters.subcategories?.length || 0) +
     (filters.timeRange !== 'all' ? 1 : 0) +
-    (3 - filters.statuses.length);
+    (3 - filters.statuses.length) +
+    (filters.showMyEvents ? 1 : 0);
 
-  // Get available subcategories based on selected categories
   const getAvailableSubcategories = () => {
-    if (filters.categories.length === 0) return [];
-    if (filters.categories.length === 1) {
-      return subcategories[filters.categories[0]] || [];
+    if (pendingFilters.categories.length === 0) return [];
+    if (pendingFilters.categories.length === 1) {
+      return subcategories[pendingFilters.categories[0]] || [];
     }
-    // Multiple categories selected - show all their subcategories
     let allSubs = [];
-    filters.categories.forEach(cat => {
+    pendingFilters.categories.forEach(cat => {
       if (subcategories[cat]) {
         allSubs = [...allSubs, ...subcategories[cat]];
       }
@@ -198,6 +218,33 @@ const FilterPanel = ({ filters, onFilterChange }) => {
           borderTop: `1px solid ${colors.border}`
         }}>
 
+          {/* My Events Toggle */}
+          <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'center' }}>
+            <button
+              onClick={() => setPendingFilters({ ...pendingFilters, showMyEvents: !pendingFilters.showMyEvents })}
+              style={{
+                width: '100%',
+                maxWidth: '400px',
+                padding: '14px 20px',
+                borderRadius: '16px',
+                border: `2px solid ${pendingFilters.showMyEvents ? colors.brandBlue : colors.border}`,
+                fontSize: '15px',
+                fontWeight: '800',
+                cursor: 'pointer',
+                backgroundColor: pendingFilters.showMyEvents ? colors.brandBlue : colors.cardBg,
+                color: pendingFilters.showMyEvents ? 'white' : colors.textMain,
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
+            >
+              <span style={{ fontSize: '18px' }}>👤</span>
+              <span>My Events Only</span>
+            </button>
+          </div>
+
           {/* Time Filter */}
           <div style={{ marginBottom: '24px' }}>
             <label style={{
@@ -207,15 +254,16 @@ const FilterPanel = ({ filters, onFilterChange }) => {
               fontWeight: '800',
               color: colors.textMain,
               textTransform: 'uppercase',
-              letterSpacing: '0.5px'
+              letterSpacing: '0.5px',
+              textAlign: 'center'
             }}>
               When
             </label>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
               {timeOptions.map(option => (
                 <button
                   key={option.id}
-                  onClick={() => onFilterChange({ ...filters, timeRange: option.id })}
+                  onClick={() => setPendingFilters({ ...pendingFilters, timeRange: option.id })}
                   style={{
                     padding: '10px 16px',
                     borderRadius: '50px',
@@ -223,10 +271,10 @@ const FilterPanel = ({ filters, onFilterChange }) => {
                     fontSize: '14px',
                     fontWeight: '700',
                     cursor: 'pointer',
-                    backgroundColor: filters.timeRange === option.id ? colors.brandBlue : colors.cardBg,
-                    color: filters.timeRange === option.id ? 'white' : colors.textMuted,
+                    backgroundColor: pendingFilters.timeRange === option.id ? colors.brandBlue : colors.cardBg,
+                    color: pendingFilters.timeRange === option.id ? 'white' : colors.textMuted,
                     transition: 'all 0.2s ease',
-                    boxShadow: filters.timeRange === option.id ? '0 4px 12px rgba(74, 144, 186, 0.3)' : 'none'
+                    boxShadow: pendingFilters.timeRange === option.id ? '0 4px 12px rgba(74, 144, 186, 0.3)' : 'none'
                   }}
                 >
                   {option.label}
@@ -244,11 +292,12 @@ const FilterPanel = ({ filters, onFilterChange }) => {
               fontWeight: '800',
               color: colors.textMain,
               textTransform: 'uppercase',
-              letterSpacing: '0.5px'
+              letterSpacing: '0.5px',
+              textAlign: 'center'
             }}>
               Vibe
             </label>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
               {categories.map(cat => (
                 <button
                   key={cat.id}
@@ -260,10 +309,10 @@ const FilterPanel = ({ filters, onFilterChange }) => {
                     fontSize: '14px',
                     fontWeight: '700',
                     cursor: 'pointer',
-                    backgroundColor: filters.categories.includes(cat.id) ? colors.brandBlue : colors.cardBg,
-                    color: filters.categories.includes(cat.id) ? 'white' : colors.textMuted,
+                    backgroundColor: pendingFilters.categories.includes(cat.id) ? colors.brandBlue : colors.cardBg,
+                    color: pendingFilters.categories.includes(cat.id) ? 'white' : colors.textMuted,
                     transition: 'all 0.2s ease',
-                    boxShadow: filters.categories.includes(cat.id) ? '0 4px 12px rgba(74, 144, 186, 0.3)' : 'none'
+                    boxShadow: pendingFilters.categories.includes(cat.id) ? '0 4px 12px rgba(74, 144, 186, 0.3)' : 'none'
                   }}
                 >
                   <span style={{ marginRight: '6px' }}>{cat.emoji}</span>
@@ -273,7 +322,7 @@ const FilterPanel = ({ filters, onFilterChange }) => {
             </div>
           </div>
 
-          {/* Subcategory Filter - Only show if categories are selected */}
+          {/* Subcategory Filter */}
           {availableSubcategories.length > 0 && (
             <div style={{ marginBottom: '24px' }}>
               <label style={{
@@ -283,11 +332,12 @@ const FilterPanel = ({ filters, onFilterChange }) => {
                 fontWeight: '800',
                 color: colors.textMain,
                 textTransform: 'uppercase',
-                letterSpacing: '0.5px'
+                letterSpacing: '0.5px',
+                textAlign: 'center'
               }}>
                 Specific Activity
               </label>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
                 {availableSubcategories.map(sub => (
                   <button
                     key={sub.id}
@@ -299,10 +349,10 @@ const FilterPanel = ({ filters, onFilterChange }) => {
                       fontSize: '13px',
                       fontWeight: '700',
                       cursor: 'pointer',
-                      backgroundColor: filters.subcategories?.includes(sub.id) ? colors.brandBlue : colors.cardBg,
-                      color: filters.subcategories?.includes(sub.id) ? 'white' : colors.textMuted,
+                      backgroundColor: pendingFilters.subcategories?.includes(sub.id) ? colors.brandBlue : colors.cardBg,
+                      color: pendingFilters.subcategories?.includes(sub.id) ? 'white' : colors.textMuted,
                       transition: 'all 0.2s ease',
-                      boxShadow: filters.subcategories?.includes(sub.id) ? '0 4px 12px rgba(74, 144, 186, 0.3)' : 'none'
+                      boxShadow: pendingFilters.subcategories?.includes(sub.id) ? '0 4px 12px rgba(74, 144, 186, 0.3)' : 'none'
                     }}
                   >
                     {sub.label}
@@ -321,11 +371,12 @@ const FilterPanel = ({ filters, onFilterChange }) => {
               fontWeight: '800',
               color: colors.textMain,
               textTransform: 'uppercase',
-              letterSpacing: '0.5px'
+              letterSpacing: '0.5px',
+              textAlign: 'center'
             }}>
               Status
             </label>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
               {statusOptions.map(option => (
                 <button
                   key={option.id}
@@ -337,10 +388,10 @@ const FilterPanel = ({ filters, onFilterChange }) => {
                     fontSize: '14px',
                     fontWeight: '700',
                     cursor: 'pointer',
-                    backgroundColor: filters.statuses.includes(option.id) ? option.color : colors.cardBg,
-                    color: filters.statuses.includes(option.id) ? 'white' : colors.textMuted,
+                    backgroundColor: pendingFilters.statuses.includes(option.id) ? option.color : colors.cardBg,
+                    color: pendingFilters.statuses.includes(option.id) ? 'white' : colors.textMuted,
                     transition: 'all 0.2s ease',
-                    boxShadow: filters.statuses.includes(option.id) ? `0 4px 12px ${option.color}33` : 'none'
+                    boxShadow: pendingFilters.statuses.includes(option.id) ? `0 4px 12px ${option.color}33` : 'none'
                   }}
                 >
                   {option.label}
@@ -350,7 +401,7 @@ const FilterPanel = ({ filters, onFilterChange }) => {
           </div>
 
           {/* Distance Filter */}
-          <div style={{ marginBottom: '20px' }}>
+          <div style={{ marginBottom: '24px' }}>
             <label style={{
               display: 'block',
               marginBottom: '12px',
@@ -358,15 +409,16 @@ const FilterPanel = ({ filters, onFilterChange }) => {
               fontWeight: '800',
               color: colors.textMain,
               textTransform: 'uppercase',
-              letterSpacing: '0.5px'
+              letterSpacing: '0.5px',
+              textAlign: 'center'
             }}>
               Distance
             </label>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
               {distanceOptions.map(option => (
                 <button
                   key={option.id}
-                  onClick={() => onFilterChange({ ...filters, distance: option.id })}
+                  onClick={() => setPendingFilters({ ...pendingFilters, distance: option.id })}
                   style={{
                     padding: '10px 16px',
                     borderRadius: '50px',
@@ -374,10 +426,10 @@ const FilterPanel = ({ filters, onFilterChange }) => {
                     fontSize: '14px',
                     fontWeight: '700',
                     cursor: 'pointer',
-                    backgroundColor: filters.distance === option.id ? colors.brandBlue : colors.cardBg,
-                    color: filters.distance === option.id ? 'white' : colors.textMuted,
+                    backgroundColor: pendingFilters.distance === option.id ? colors.brandBlue : colors.cardBg,
+                    color: pendingFilters.distance === option.id ? 'white' : colors.textMuted,
                     transition: 'all 0.2s ease',
-                    boxShadow: filters.distance === option.id ? '0 4px 12px rgba(74, 144, 186, 0.3)' : 'none'
+                    boxShadow: pendingFilters.distance === option.id ? '0 4px 12px rgba(74, 144, 186, 0.3)' : 'none'
                   }}
                 >
                   {option.label}
@@ -386,30 +438,46 @@ const FilterPanel = ({ filters, onFilterChange }) => {
             </div>
           </div>
 
-          {/* Clear All Button */}
-          <button
-            onClick={() => onFilterChange({
-              categories: [],
-              subcategories: [],
-              timeRange: 'all',
-              statuses: ['proposed', 'pending', 'active'],
-              distance: '10'
-            })}
-            style={{
-              padding: '14px 20px',
-              backgroundColor: colors.textMuted,
-              color: 'white',
-              border: 'none',
-              borderRadius: '16px',
-              fontSize: '14px',
-              fontWeight: '800',
-              cursor: 'pointer',
-              width: '100%',
-              transition: 'all 0.2s'
-            }}
-          >
-            Clear All Filters
-          </button>
+          {/* Action Buttons */}
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+            <button
+              onClick={applyFilters}
+              style={{
+                flex: 1,
+                maxWidth: '300px',
+                padding: '14px 20px',
+                backgroundColor: colors.brandBlue,
+                color: 'white',
+                border: 'none',
+                borderRadius: '16px',
+                fontSize: '15px',
+                fontWeight: '800',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                boxShadow: '0 4px 12px rgba(74, 144, 186, 0.3)'
+              }}
+            >
+              Apply Filters
+            </button>
+            <button
+              onClick={clearFilters}
+              style={{
+                flex: 1,
+                maxWidth: '300px',
+                padding: '14px 20px',
+                backgroundColor: colors.textMuted,
+                color: 'white',
+                border: 'none',
+                borderRadius: '16px',
+                fontSize: '15px',
+                fontWeight: '800',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              Clear All
+            </button>
+          </div>
         </div>
       )}
     </div>

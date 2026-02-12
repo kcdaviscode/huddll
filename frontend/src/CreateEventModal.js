@@ -7,6 +7,9 @@ const CreateEventModal = ({ isOpen, onClose, onCreateEvent }) => {
     category: 'social',
     subcategory: '',
     time: '',
+    duration: 2,
+    min_attendees: 3,
+    max_attendees: null,
     description: '',
     lat: 39.2904,
     lng: -76.6122
@@ -16,6 +19,64 @@ const CreateEventModal = ({ isOpen, onClose, onCreateEvent }) => {
 
   const venueInputRef = useRef(null);
   const autocompleteRef = useRef(null);
+
+  const calculateEndTime = (startTime, durationHours) => {
+    if (!startTime) return '';
+    const start = new Date(startTime);
+    const end = new Date(start.getTime() + (durationHours * 60 * 60 * 1000));
+    return end.toISOString().slice(0, 16);
+  };
+
+  const getDefaultAttendees = (category, subcategory) => {
+    // Subcategory-specific defaults (override category defaults)
+    const subcategoryDefaults = {
+      // Sports subcategories
+      golf: { min: 2, max: 4 },
+      basketball: { min: 8, max: 10 },
+      soccer: { min: 10, max: 22 },
+      tennis: { min: 2, max: 4 },
+      running: { min: 2, max: null },
+      cycling: { min: 2, max: null },
+      hiking: { min: 3, max: null },
+      gym: { min: 2, max: null },
+      yoga: { min: 3, max: 15 },
+      swimming: { min: 2, max: null },
+      pickup_games: { min: 6, max: 20 },
+
+      // Food subcategories
+      coffee: { min: 2, max: 4 },
+      brunch: { min: 3, max: 8 },
+      dinner: { min: 3, max: 8 },
+      happy_hour: { min: 3, max: null },
+
+      // Nightlife
+      bar_hopping: { min: 3, max: null },
+      club: { min: 4, max: null },
+      karaoke: { min: 3, max: 10 },
+      trivia: { min: 3, max: 6 },
+
+      // Social
+      game_night: { min: 3, max: 8 },
+      book_club: { min: 4, max: 12 },
+    };
+
+    // Check for subcategory-specific defaults first
+    if (subcategory && subcategoryDefaults[subcategory]) {
+      return subcategoryDefaults[subcategory];
+    }
+
+    // Fall back to category defaults
+    const categoryDefaults = {
+      sports: { min: 6, max: 10 },
+      food: { min: 3, max: 8 },
+      nightlife: { min: 3, max: null },
+      music: { min: 2, max: null },
+      arts: { min: 3, max: 12 },
+      social: { min: 3, max: null }
+    };
+
+    return categoryDefaults[category] || { min: 3, max: null };
+  };
 
   const categories = [
     { id: 'food', label: 'Food & Drink', emoji: '🍔' },
@@ -146,10 +207,23 @@ const CreateEventModal = ({ isOpen, onClose, onCreateEvent }) => {
   }, [isOpen, formData.time]);
 
   const handleCategoryChange = (categoryId) => {
+    const defaults = getDefaultAttendees(categoryId, null);
     setFormData({
       ...formData,
       category: categoryId,
-      subcategory: '' // Reset subcategory when category changes
+      subcategory: '',
+      min_attendees: defaults.min,
+      max_attendees: defaults.max
+    });
+  };
+
+  const handleSubcategoryChange = (subcategoryId) => {
+    const defaults = getDefaultAttendees(formData.category, subcategoryId);
+    setFormData({
+      ...formData,
+      subcategory: subcategoryId,
+      min_attendees: defaults.min,
+      max_attendees: defaults.max
     });
   };
 
@@ -160,20 +234,55 @@ const CreateEventModal = ({ isOpen, onClose, onCreateEvent }) => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:8000/api/users/events/create/', {
+
+      const apiData = {
+        title: formData.title,
+        venue_name: formData.venue,
+        address: formData.venue,
+        city: formData.city || 'Baltimore',
+        category: formData.category,
+        subcategory: formData.subcategory || '',
+        description: formData.description || '',
+        latitude: parseFloat(formData.lat).toFixed(6),
+        longitude: parseFloat(formData.lng).toFixed(6),
+        start_time: formData.time,
+        end_time: calculateEndTime(formData.time, formData.duration),
+        min_attendees: formData.min_attendees,
+        max_attendees: formData.max_attendees
+      };
+
+      console.log('Sending data:', apiData);
+
+      const response = await fetch('http://localhost:8000/api/events/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Token ${token}` },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(apiData)
       });
+
       const data = await response.json();
+      console.log('Response:', data);
+
       if (response.ok) {
         onCreateEvent(data);
-        setFormData({ title: '', venue: '', category: 'social', subcategory: '', time: '', description: '', lat: 39.2904, lng: -76.6122 });
+        setFormData({
+          title: '',
+          venue: '',
+          category: 'social',
+          subcategory: '',
+          time: '',
+          duration: 2,
+          min_attendees: 3,
+          max_attendees: null,
+          description: '',
+          lat: 39.2904,
+          lng: -76.6122
+        });
         onClose();
       } else {
-        setError(data.error || 'Failed to create event');
+        setError(JSON.stringify(data));
       }
     } catch (err) {
+      console.error('Error:', err);
       setError('Network error. Please try again.');
     } finally {
       setLoading(false);
@@ -203,7 +312,7 @@ const CreateEventModal = ({ isOpen, onClose, onCreateEvent }) => {
 
       <div style={{
         backgroundColor: colors.bg, borderRadius: '32px',
-        maxWidth: '500px', width: '100%',
+        maxWidth: '550px', width: '100%',
         maxHeight: '90vh', overflow: 'auto',
         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
         position: 'relative'
@@ -244,6 +353,7 @@ const CreateEventModal = ({ isOpen, onClose, onCreateEvent }) => {
             }}>⚠️ {error}</div>
           )}
 
+          {/* Title */}
           <div style={{ marginBottom: '20px' }}>
             <label style={{
               display: 'block', marginBottom: '8px',
@@ -259,11 +369,13 @@ const CreateEventModal = ({ isOpen, onClose, onCreateEvent }) => {
               style={{
                 width: '100%', padding: '16px',
                 backgroundColor: colors.inputBg, border: 'none', borderRadius: '16px',
-                fontSize: '16px', fontWeight: '600', color: colors.textMain, outline: 'none'
+                fontSize: '16px', fontWeight: '600', color: colors.textMain, outline: 'none',
+                boxSizing: 'border-box'
               }}
             />
           </div>
 
+          {/* Location */}
           <div style={{ marginBottom: '20px' }}>
             <label style={{
               display: 'block', marginBottom: '8px',
@@ -285,12 +397,14 @@ const CreateEventModal = ({ isOpen, onClose, onCreateEvent }) => {
                 style={{
                   width: '100%', padding: '16px 16px 16px 48px',
                   backgroundColor: colors.inputBg, border: 'none', borderRadius: '16px',
-                  fontSize: '16px', fontWeight: '600', color: colors.textMain, outline: 'none'
+                  fontSize: '16px', fontWeight: '600', color: colors.textMain, outline: 'none',
+                  boxSizing: 'border-box'
                 }}
               />
             </div>
           </div>
 
+          {/* Category */}
           <div style={{ marginBottom: '24px' }}>
             <label style={{
               display: 'block', marginBottom: '12px',
@@ -318,7 +432,7 @@ const CreateEventModal = ({ isOpen, onClose, onCreateEvent }) => {
             </div>
           </div>
 
-          {/* Subcategory Dropdown */}
+          {/* Subcategory */}
           {subcategories[formData.category] && (
             <div style={{ marginBottom: '20px' }}>
               <label style={{
@@ -328,12 +442,13 @@ const CreateEventModal = ({ isOpen, onClose, onCreateEvent }) => {
               }}>Specific Activity</label>
               <select
                 value={formData.subcategory}
-                onChange={(e) => setFormData({...formData, subcategory: e.target.value})}
+                onChange={(e) => handleSubcategoryChange(e.target.value)}
                 style={{
                   width: '100%', padding: '16px',
                   backgroundColor: colors.inputBg, border: 'none', borderRadius: '16px',
                   fontSize: '16px', fontWeight: '600', color: colors.textMain, outline: 'none',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  boxSizing: 'border-box'
                 }}
               >
                 <option value="">Select activity (optional)</option>
@@ -344,6 +459,7 @@ const CreateEventModal = ({ isOpen, onClose, onCreateEvent }) => {
             </div>
           )}
 
+          {/* When */}
           <div style={{ marginBottom: '20px' }}>
             <label style={{
               display: 'block', marginBottom: '8px',
@@ -359,11 +475,93 @@ const CreateEventModal = ({ isOpen, onClose, onCreateEvent }) => {
                 width: '100%', padding: '16px',
                 backgroundColor: colors.inputBg, border: 'none', borderRadius: '16px',
                 fontSize: '16px', fontWeight: '600', color: colors.textMain,
-                outline: 'none', fontFamily: 'inherit'
+                outline: 'none', fontFamily: 'inherit',
+                boxSizing: 'border-box'
               }}
             />
           </div>
 
+          {/* Duration */}
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{
+              display: 'block', marginBottom: '8px',
+              fontSize: '13px', fontWeight: '800', color: colors.textMain,
+              textTransform: 'uppercase', letterSpacing: '0.5px'
+            }}>Duration</label>
+            <select
+              value={formData.duration}
+              onChange={(e) => setFormData({ ...formData, duration: Number(e.target.value) })}
+              style={{
+                width: '100%', padding: '16px',
+                backgroundColor: colors.inputBg, border: 'none', borderRadius: '16px',
+                fontSize: '16px', fontWeight: '600', color: colors.textMain,
+                outline: 'none', cursor: 'pointer',
+                boxSizing: 'border-box'
+              }}
+            >
+              <option value={1}>1 hour</option>
+              <option value={2}>2 hours</option>
+              <option value={3}>3 hours</option>
+              <option value={4}>4 hours</option>
+              <option value={6}>6 hours</option>
+              <option value={8}>All day (8 hours)</option>
+            </select>
+          </div>
+
+          {/* Group Size */}
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{
+              display: 'block', marginBottom: '8px',
+              fontSize: '13px', fontWeight: '800', color: colors.textMain,
+              textTransform: 'uppercase', letterSpacing: '0.5px'
+            }}>Group Size</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', color: colors.textMuted, fontWeight: '600' }}>
+                  Minimum
+                </label>
+                <input
+                  type="number"
+                  min="2"
+                  max="50"
+                  value={formData.min_attendees}
+                  onChange={(e) => setFormData({ ...formData, min_attendees: Number(e.target.value) })}
+                  style={{
+                    width: '100%', padding: '12px',
+                    backgroundColor: colors.inputBg, border: 'none', borderRadius: '12px',
+                    fontSize: '16px', fontWeight: '600', color: colors.textMain,
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', color: colors.textMuted, fontWeight: '600' }}>
+                  Maximum (optional)
+                </label>
+                <input
+                  type="number"
+                  min={formData.min_attendees}
+                  max="100"
+                  value={formData.max_attendees || ''}
+                  onChange={(e) => setFormData({ ...formData, max_attendees: e.target.value ? Number(e.target.value) : null })}
+                  placeholder="No limit"
+                  style={{
+                    width: '100%', padding: '12px',
+                    backgroundColor: colors.inputBg, border: 'none', borderRadius: '12px',
+                    fontSize: '16px', fontWeight: '600', color: colors.textMain,
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+            </div>
+            <p style={{ fontSize: '12px', color: colors.textMuted, margin: '8px 0 0 0', fontWeight: '500' }}>
+              Event becomes active when minimum is reached{formData.max_attendees ? `, closes at ${formData.max_attendees}` : ''}
+            </p>
+          </div>
+
+          {/* Details */}
           <div style={{ marginBottom: '32px' }}>
             <label style={{
               display: 'block', marginBottom: '8px',
@@ -380,7 +578,8 @@ const CreateEventModal = ({ isOpen, onClose, onCreateEvent }) => {
                   width: '100%', padding: '16px 16px 16px 48px',
                   backgroundColor: colors.inputBg, border: 'none', borderRadius: '16px',
                   fontSize: '16px', fontWeight: '500', color: colors.textMain,
-                  outline: 'none', minHeight: '100px', resize: 'vertical'
+                  outline: 'none', minHeight: '100px', resize: 'vertical',
+                  boxSizing: 'border-box'
                 }}
               />
             </div>

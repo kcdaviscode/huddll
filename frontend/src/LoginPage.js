@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import './LoginPage.css';
 
-const LoginPage = ({ onLoginSuccess }) => {
+function LoginPage() {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     username: '',
     password: ''
@@ -8,13 +11,19 @@ const LoginPage = ({ onLoginSuccess }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
-      console.log('Sending login request...');
       const response = await fetch('http://localhost:8000/api/users/login/', {
         method: 'POST',
         headers: {
@@ -23,143 +32,82 @@ const LoginPage = ({ onLoginSuccess }) => {
         body: JSON.stringify(formData)
       });
 
-      console.log('Response status:', response.status, response.ok);
       const data = await response.json();
-      console.log('Response data:', data);
 
       if (response.ok) {
-        console.log('Login successful, saving to localStorage...');
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
-        console.log('Calling onLoginSuccess...');
-        if (onLoginSuccess) {
-          onLoginSuccess();
-        }
+        navigate('/map');
       } else {
-        console.log('Login failed:', data);
-        setError(data.error || 'Invalid credentials');
+        setError(data.error || 'Login failed');
       }
     } catch (err) {
-      console.error('Login error caught:', err);
-      setError('Network error. Is Django running?');
+      setError('Network error. Please try again.');
+      console.error('Login error:', err);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '20px'
-    }}>
-      <div style={{
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        borderRadius: '20px',
-        padding: '40px',
-        maxWidth: '400px',
-        width: '100%',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
-      }}>
-
-        <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-          <div style={{ position: 'relative', display: 'inline-block' }}>
-            <h1 style={{
-              fontSize: '48px',
-              fontWeight: '700',
-              color: '#4A90BA',
-              margin: 0,
-              letterSpacing: '2px'
-            }}>huddll</h1>
-            <svg style={{
-              position: 'absolute',
-              left: '50%',
-              marginLeft: '-3px',
-              bottom: '-8px',
-              width: '38px',
-              height: '13px'
-            }} viewBox="0 0 50 16">
-              <path
-                d="M 2 2 Q 25 20 48 2"
-                fill="none"
-                stroke="#4A90BA"
-                strokeWidth="6"
-                strokeLinecap="round"
-              />
-            </svg>
-          </div>
-          <p style={{ color: '#6B7280', marginTop: '15px' }}>
-            Welcome back!
-          </p>
+    <div className="login-page">
+      <div className="login-container">
+        <div className="login-header">
+          <svg viewBox="0 0 200 80" className="logo">
+            <path
+              d="M 20 60 Q 20 20, 60 20 T 100 60"
+              stroke="#4A90BA"
+              strokeWidth="8"
+              fill="none"
+              strokeLinecap="round"
+            />
+          </svg>
+          <h1 className="login-title">Welcome Back</h1>
+          <p className="login-subtitle">Log in to your Huddll account</p>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <input
-            type="text"
-            placeholder="Username"
-            value={formData.username}
-            onChange={(e) => setFormData({...formData, username: e.target.value})}
-            style={{
-              width: '100%',
-              padding: '15px',
-              marginBottom: '15px',
-              borderRadius: '10px',
-              border: '1px solid #D1D5DB',
-              fontSize: '16px',
-              outline: 'none'
-            }}
-            required
-          />
+        {error && (
+          <div className="error-message">
+            {error}
+          </div>
+        )}
 
-          <input
-            type="password"
-            placeholder="Password"
-            value={formData.password}
-            onChange={(e) => setFormData({...formData, password: e.target.value})}
-            style={{
-              width: '100%',
-              padding: '15px',
-              marginBottom: '15px',
-              borderRadius: '10px',
-              border: '1px solid #D1D5DB',
-              fontSize: '16px',
-              outline: 'none'
-            }}
-            required
-          />
+        <form onSubmit={handleSubmit} className="login-form">
+          <div className="form-group">
+            <label>Username</label>
+            <input
+              type="text"
+              name="username"
+              value={formData.username}
+              onChange={handleChange}
+              required
+              placeholder="Enter your username"
+            />
+          </div>
 
-          {error && (
-            <p style={{ color: '#EF4444', fontSize: '14px', marginBottom: '10px' }}>
-              {error}
-            </p>
-          )}
+          <div className="form-group">
+            <label>Password</label>
+            <input
+              type="password"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              required
+              placeholder="Enter your password"
+            />
+          </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              width: '100%',
-              padding: '15px',
-              backgroundColor: '#4A90BA',
-              color: 'white',
-              border: 'none',
-              borderRadius: '10px',
-              fontSize: '16px',
-              fontWeight: '600',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              marginBottom: '15px',
-              opacity: loading ? 0.7 : 1
-            }}
-          >
+          <button type="submit" className="login-button" disabled={loading}>
             {loading ? 'Logging in...' : 'Log In'}
           </button>
         </form>
+
+        <p className="signup-link">
+          Don't have an account? <a href="#" onClick={(e) => { e.preventDefault(); navigate('/signup'); }}>Sign up</a>
+        </p>
       </div>
     </div>
   );
-};
+}
 
 export default LoginPage;

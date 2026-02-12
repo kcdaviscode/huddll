@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Clock, Users, X, Navigation } from 'lucide-react';
+import { MapPin, Clock, Users, X, Navigation, Trash2 } from 'lucide-react';
 
 const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
   const [joining, setJoining] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     setError('');
+    setShowDeleteConfirm(false);
   }, [event?.id]);
 
   if (!isOpen || !event) return null;
@@ -19,7 +22,9 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
     accentLight: '#F0F9FF',
     textMain: '#0F172A',
     textMuted: '#64748B',
-    border: '#E2E8F0'
+    border: '#E2E8F0',
+    danger: '#EF4444',
+    dangerLight: '#FEF2F2'
   };
 
   const getCategoryEmoji = (category) => {
@@ -46,6 +51,11 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
     return Number(event.created_by) === Number(user.id);
   };
 
+  const isUserInterested = () => {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    return event.interested_user_ids && event.interested_user_ids.includes(Number(user.id));
+  };
+
   const handleJoin = async () => {
     if (isEventCreator()) {
       setError("You're the host!");
@@ -57,47 +67,81 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
 
     try {
       const token = localStorage.getItem('token');
-      if (!navigator.geolocation) {
-        setError('Geolocation required');
-        setJoining(false);
-        return;
-      }
 
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          try {
-            const response = await fetch(`http://localhost:8000/api/events/${event.id}/check_in/`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Authorization': `Token ${token}` },
-              body: JSON.stringify({
-                latitude: position.coords.latitude,
-                longitude: position.coords.longitude
-              })
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-              alert('Successfully joined the Huddll! 🎉');
-              if (onEventUpdated) onEventUpdated();
-              onClose();
-            } else {
-              setError(data.error || data.detail || 'Too far away to check in.');
-            }
-            setJoining(false);
-          } catch (err) {
-            setError('Network error.');
-            setJoining(false);
-          }
-        },
-        () => {
-          setError('Please enable location services.');
-          setJoining(false);
+      const response = await fetch(`http://localhost:8000/api/events/${event.id}/mark_interested/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${token}`
         }
-      );
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        if (onEventUpdated) onEventUpdated();
+        onClose();
+      } else {
+        setError(data.error || data.message || 'Failed to join event.');
+      }
     } catch (err) {
-      setError('Something went wrong.');
+      setError('Network error.');
+    } finally {
       setJoining(false);
+    }
+  };
+
+  const handleLeave = async () => {
+    setJoining(true);
+    setError('');
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:8000/api/events/${event.id}/unmark_interested/`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Token ${token}`
+        }
+      });
+
+      if (response.ok) {
+        if (onEventUpdated) onEventUpdated();
+        onClose();
+      } else {
+        setError('Failed to leave event.');
+      }
+    } catch (err) {
+      setError('Network error.');
+    } finally {
+      setJoining(false);
+    }
+  };
+
+  const handleDeleteEvent = async () => {
+    setDeleting(true);
+    setError('');
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:8000/api/events/${event.id}/delete/`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Token ${token}`
+        }
+      });
+
+      if (response.ok) {
+        if (onEventUpdated) onEventUpdated();
+        onClose();
+      } else {
+        const data = await response.json();
+        setError(data.error || 'Failed to delete event.');
+      }
+    } catch (err) {
+      setError('Network error.');
+    } finally {
+      setDeleting(false);
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -159,6 +203,23 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
             <X size={20} />
           </button>
 
+          {/* Delete Button - Only show for event creator */}
+          {isEventCreator() && (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              style={{
+                position: 'absolute', top: '24px', left: '24px',
+                background: 'rgba(239, 68, 68, 0.2)', border: 'none', borderRadius: '50%',
+                width: '36px', height: '36px', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: '#EF4444', backdropFilter: 'blur(4px)', zIndex: 10
+              }}
+              title="Delete Event"
+            >
+              <Trash2 size={18} />
+            </button>
+          )}
+
           <div style={{ position: 'relative', zIndex: 2 }}>
             <div style={{ fontSize: '56px', marginBottom: '16px', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.2))' }}>
               {getCategoryEmoji(event.category)}
@@ -186,12 +247,67 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
 
           {error && (
             <div style={{
-              backgroundColor: '#FEF2F2', color: '#991B1B',
+              backgroundColor: colors.dangerLight, color: colors.danger,
               padding: '12px 16px', borderRadius: '16px',
               fontSize: '14px', fontWeight: '600', marginBottom: '24px',
               display: 'flex', alignItems: 'center', gap: '8px'
             }}>
               <span style={{ fontSize: '18px' }}>⚠️</span> {error}
+            </div>
+          )}
+
+          {/* Delete Confirmation */}
+          {showDeleteConfirm && (
+            <div style={{
+              backgroundColor: colors.dangerLight,
+              padding: '20px',
+              borderRadius: '16px',
+              marginBottom: '24px',
+              border: `2px solid ${colors.danger}`
+            }}>
+              <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: '800', color: colors.danger }}>
+                Delete this event?
+              </h3>
+              <p style={{ margin: '0 0 16px 0', fontSize: '14px', color: colors.textMuted }}>
+                This will permanently delete the event. {event.interested_count > 1 ? `${event.interested_count} people are interested.` : ''}
+              </p>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  onClick={handleDeleteEvent}
+                  disabled={deleting}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    backgroundColor: colors.danger,
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    fontWeight: '700',
+                    cursor: deleting ? 'not-allowed' : 'pointer',
+                    opacity: deleting ? 0.6 : 1
+                  }}
+                >
+                  {deleting ? 'Deleting...' : 'Yes, Delete'}
+                </button>
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={deleting}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    backgroundColor: colors.textMuted,
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    fontWeight: '700',
+                    cursor: deleting ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           )}
 
@@ -259,7 +375,7 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
                   Who's Going?
                 </h3>
                 <p style={{ margin: '2px 0 0 0', fontSize: '14px', color: colors.textMuted }}>
-                  {event.checkins ? event.checkins.length + 1 : 1} people checked in
+                  {event.interested_count || 1} {(event.interested_count || 1) === 1 ? 'person' : 'people'} interested
                 </p>
               </div>
             </div>
@@ -276,6 +392,32 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
                 textAlign: 'center', border: '1px dashed #CBD5E1'
               }}>
                 You are hosting this Huddll
+              </div>
+            ) : isUserInterested() ? (
+              <div>
+                <button
+                  style={{
+                    width: '100%', padding: '20px',
+                    backgroundColor: '#10B981',
+                    color: 'white', border: 'none', borderRadius: '24px',
+                    fontSize: '18px', fontWeight: '800', cursor: 'default',
+                    boxShadow: '0 10px 25px -5px rgba(16, 185, 129, 0.4)',
+                  }}
+                >
+                  You're Going ✓
+                </button>
+                <button
+                  onClick={handleLeave}
+                  disabled={joining}
+                  style={{
+                    width: '100%', padding: '12px', marginTop: '12px',
+                    backgroundColor: 'transparent',
+                    color: '#EF4444', border: '2px solid #EF4444', borderRadius: '16px',
+                    fontSize: '14px', fontWeight: '700', cursor: joining ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {joining ? 'Leaving...' : 'Can\'t Make It'}
+                </button>
               </div>
             ) : (
               <button
@@ -294,14 +436,8 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
                 onMouseUp={(e) => !joining && (e.currentTarget.style.transform = 'scale(1)')}
                 onMouseLeave={(e) => !joining && (e.currentTarget.style.transform = 'scale(1)')}
               >
-                {joining ? 'Verifying Location...' : 'Join Huddll'}
+                {joining ? 'Joining...' : 'I\'m Going!'}
               </button>
-            )}
-
-            {!isEventCreator() && !joining && (
-              <p style={{ textAlign: 'center', marginTop: '12px', fontSize: '12px', color: colors.textMuted }}>
-                Must be at venue to join.
-              </p>
             )}
           </div>
 

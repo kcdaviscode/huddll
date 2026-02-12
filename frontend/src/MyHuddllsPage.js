@@ -1,347 +1,225 @@
 import React, { useState, useEffect } from 'react';
+import { MapPin, Users, Clock, Camera } from 'lucide-react';
+import EventDetailModal from './EventDetailModal';
 
 const MyHuddllsPage = () => {
-  const [activeFilter, setActiveFilter] = useState('upcoming');
-  const [huddlls, setHuddlls] = useState({
-    upcoming: [],
-    past: [],
-    proposed: []
-  });
+  const [viewMode, setViewMode] = useState('upcoming');
+  const [events, setEvents] = useState({ upcoming: [], past: [] });
+  const [allEvents, setAllEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedEvent, setSelectedEvent] = useState(null);
 
-  // Branding Colors
-  const colors = {
-    bg: '#F8FAFC',
-    header: '#0F172A',
-    brandBlue: '#4A90BA',
-    brandYellow: '#F59E0B',
-    brandGreen: '#10B981',
-    textMain: '#1E293B',
-    textMuted: '#64748B',
-    cardBg: '#FFFFFF'
+  const theme = {
+    bg: '#121212',
+    cardBg: '#1E1E1E',
+    headerBg: '#1E1E1E',
+    accent: '#4A90E2',
+    accentDim: 'rgba(74, 144, 226, 0.1)',
+    textMain: '#FFFFFF',
+    textSecondary: '#B0B3B8',
+    divider: '#2F3336',
+    success: '#34D399'
   };
 
-  // Fetch user's events
   useEffect(() => {
     fetchUserEvents();
   }, []);
 
   const fetchUserEvents = async () => {
-  try {
-    const token = localStorage.getItem('token');
-    const userStr = localStorage.getItem('user');
-    console.log('User from localStorage:', userStr);
+    try {
+      const token = localStorage.getItem('token');
+      const userStr = localStorage.getItem('user');
+      const user = JSON.parse(userStr);
 
-    const user = JSON.parse(userStr);
-    console.log('Parsed user:', user);
-    console.log('User ID:', user.id);
+      const response = await fetch('http://localhost:8000/api/events/', {
+        headers: { 'Authorization': `Token ${token}` }
+      });
+      const fetchedEvents = await response.json();
+      setAllEvents(fetchedEvents);
 
-    const response = await fetch('http://localhost:8000/api/events/', {
-      headers: {
-        'Authorization': `Token ${token}`
-      }
-    });
-    const allEvents = await response.json();
-    console.log('All events:', allEvents);
+      const now = new Date();
 
-    const now = new Date();
+      const myEvents = fetchedEvents.filter(event => {
+        return event.interested_user_ids && event.interested_user_ids.includes(Number(user.id));
+      });
 
-    const myEvents = allEvents.filter(event => {
-      console.log(`Comparing event.created_by (${event.created_by}) with user.id (${user.id})`);
-      return Number(event.created_by) === Number(user.id);
-    });
+      const upcoming = myEvents.filter(e => new Date(e.start_time) >= now);
+      const past = myEvents.filter(e => new Date(e.start_time) < now);
 
-    console.log('My events:', myEvents);
-
-    const categorized = {
-      upcoming: [],
-      past: [],
-      proposed: []
-    };
-
-    myEvents.forEach(event => {
-      const eventDate = new Date(event.start_time);
-      const attendeeCount = event.checkins ? event.checkins.length + 1 : 1;
-
-      let status = 'proposed';
-      if (attendeeCount === 2) status = 'pending';
-      if (attendeeCount >= 3) status = 'active';
-
-      const eventData = {
-  id: event.id,
-  title: event.title,
-  venue: event.venue_name,
-  time: formatEventTime(eventDate),
-  attendees: attendeeCount,
-  max_attendees: event.max_attendees, // Remove the || 5 fallback
-  status: status,
-  emoji: getCategoryEmoji(event.category),
-  rawDate: eventDate
-};
-
-      if (eventDate < now) {
-        categorized.past.push({ ...eventData, status: 'completed' });
-      } else if (attendeeCount === 1) {
-        categorized.proposed.push(eventData);
-      } else {
-        categorized.upcoming.push(eventData);
-      }
-    });
-
-    console.log('Categorized:', categorized);
-    setHuddlls(categorized);
-    setLoading(false);
-  } catch (error) {
-    console.error('Error fetching events:', error);
-    setLoading(false);
-  }
-};
-
-  const formatEventTime = (date) => {
-    const now = new Date();
-    const tomorrow = new Date(now);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    const isToday = date.toDateString() === now.toDateString();
-    const isTomorrow = date.toDateString() === tomorrow.toDateString();
-
-    const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-
-    if (isToday) return `Today, ${timeStr}`;
-    if (isTomorrow) return `Tomorrow, ${timeStr}`;
-
-    const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    return `${dateStr}, ${timeStr}`;
-  };
-
-  const getCategoryEmoji = (category) => {
-    const emojiMap = {
-      food: '🍔',
-      sports: '⚽',
-      nightlife: '🎉',
-      arts: '🎨',
-      music: '🎵',
-      social: '👥'
-    };
-    return emojiMap[category] || '📍';
-  };
-
-  const getStatusColor = (status) => {
-    switch(status) {
-      case 'active': return colors.brandBlue;
-      case 'pending': return colors.brandYellow;
-      case 'completed': return colors.textMuted;
-      case 'proposed': return colors.textMuted;
-      default: return colors.textMuted;
+      setEvents({ upcoming, past });
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching events:', error);
+      setLoading(false);
     }
   };
 
-  const currentHuddlls = huddlls[activeFilter] || [];
+  const formatEventTime = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+  };
+
+  const getCategoryEmoji = (category) => {
+    const emojiMap = { food: '🍔', sports: '⚽', nightlife: '🎉', arts: '🎨', music: '🎵', social: '👥' };
+    return emojiMap[category] || '📍';
+  };
+
+  const handleViewEvent = (event) => {
+    const fullEvent = allEvents.find(e => e.id === event.id);
+    setSelectedEvent(fullEvent);
+  };
 
   if (loading) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        backgroundColor: colors.bg,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}>
-        <div style={{ fontSize: '24px', color: colors.textMuted }}>Loading...</div>
+      <div style={{ minHeight: '100vh', backgroundColor: theme.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: theme.textSecondary }}>
+        Loading Huddll...
       </div>
     );
   }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      backgroundColor: colors.bg,
-      paddingBottom: '100px',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-    }}>
+    <div style={{ minHeight: '100vh', backgroundColor: theme.bg, color: theme.textMain, paddingBottom: '80px', fontFamily: '-apple-system, sans-serif' }}>
 
       {/* HEADER */}
-      <div style={{
-        backgroundColor: colors.header,
-        padding: '60px 24px 40px',
-        borderBottomLeftRadius: '32px',
-        borderBottomRightRadius: '32px',
-        color: 'white',
-        position: 'relative',
-        overflow: 'hidden'
-      }}>
-        <div style={{
-           position: 'absolute', top: '-50%', right: '-20%', width: '300px', height: '300px',
-           backgroundColor: colors.brandBlue, filter: 'blur(80px)', opacity: 0.2, borderRadius: '50%'
-        }} />
+      <div style={{ backgroundColor: theme.headerBg, padding: '20px 20px', borderBottom: `1px solid ${theme.divider}`, position: 'sticky', top: 0, zIndex: 50 }}>
+        <h1 style={{ fontSize: '22px', fontWeight: '700', margin: '0 0 20px 0', textAlign: 'center', letterSpacing: '0.5px' }}>
+          My Huddlls
+        </h1>
 
-        <div style={{ position: 'relative', zIndex: 10 }}>
-          <h1 style={{ fontSize: '36px', fontWeight: '900', letterSpacing: '-1px', margin: '0 0 4px 0' }}>
-            My Huddlls
-          </h1>
-          <p style={{ margin: 0, opacity: 0.7, fontSize: '15px', fontWeight: '500' }}>
-            Where you're going & where you've been.
-          </p>
+        <div style={{ display: 'flex', backgroundColor: '#000000', borderRadius: '8px', padding: '4px' }}>
+          <button
+            onClick={() => setViewMode('upcoming')}
+            style={{
+              flex: 1, padding: '10px', border: 'none', borderRadius: '6px',
+              fontSize: '14px', fontWeight: '600', cursor: 'pointer',
+              backgroundColor: viewMode === 'upcoming' ? theme.cardBg : 'transparent',
+              color: viewMode === 'upcoming' ? theme.textMain : theme.textSecondary,
+              transition: 'all 0.2s'
+            }}
+          >
+            PLANS ({events.upcoming?.length || 0})
+          </button>
+          <button
+            onClick={() => setViewMode('past')}
+            style={{
+              flex: 1, padding: '10px', border: 'none', borderRadius: '6px',
+              fontSize: '14px', fontWeight: '600', cursor: 'pointer',
+              backgroundColor: viewMode === 'past' ? theme.cardBg : 'transparent',
+              color: viewMode === 'past' ? theme.textMain : theme.textSecondary,
+              transition: 'all 0.2s'
+            }}
+          >
+            RECAPS ({events.past?.length || 0})
+          </button>
         </div>
       </div>
 
-      {/* FILTER TABS */}
-      <div style={{ padding: '0 24px', marginTop: '-24px', marginBottom: '32px', position: 'relative', zIndex: 20 }}>
-        <div style={{
-          display: 'flex',
-          padding: '6px',
-          backgroundColor: 'white',
-          borderRadius: '20px',
-          boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)'
-        }}>
-          {['upcoming', 'past', 'proposed'].map((filter) => (
-            <button
-              key={filter}
-              onClick={() => setActiveFilter(filter)}
-              style={{
-                flex: 1,
-                padding: '12px',
-                fontSize: '13px',
-                fontWeight: '800',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-                borderRadius: '14px',
-                border: 'none',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                backgroundColor: activeFilter === filter ? colors.header : 'transparent',
-                color: activeFilter === filter ? 'white' : colors.textMuted,
-              }}
-            >
-              {filter} ({huddlls[filter].length})
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* CONTENT */}
+      <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
 
-      {/* EVENT LIST */}
-      <div style={{ padding: '0 24px' }}>
-        {currentHuddlls.length === 0 ? (
-          // EMPTY STATE
-          <div style={{
-            backgroundColor: 'white', borderRadius: '32px', padding: '60px 24px',
-            textAlign: 'center', border: '2px dashed #E2E8F0'
-          }}>
-            <div style={{ fontSize: '64px', marginBottom: '16px', opacity: 0.5 }}>🦗</div>
-            <h3 style={{ fontWeight: '800', fontSize: '20px', color: colors.textMain, margin: '0 0 8px 0' }}>
-              {activeFilter === 'proposed' ? 'No proposed Huddlls yet' :
-               activeFilter === 'past' ? 'No past Huddlls yet' :
-               'It\'s quiet... too quiet.'}
+        {(viewMode === 'upcoming' ? events.upcoming : events.past).length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '60px 20px', color: theme.textSecondary }}>
+            <div style={{ fontSize: '40px', marginBottom: '15px', opacity: 0.5 }}>
+              {viewMode === 'upcoming' ? '🧭' : '🎞️'}
+            </div>
+            <h3 style={{ fontSize: '18px', color: theme.textMain, marginBottom: '8px' }}>
+              {viewMode === 'upcoming' ? 'No active plans' : 'No memories yet'}
             </h3>
-            <p style={{ fontSize: '14px', color: colors.textMuted, margin: '0 0 24px 0' }}>
-              Check the map to find a crew nearby.
+            <p style={{ fontSize: '14px' }}>
+              {viewMode === 'upcoming' ? 'Check the map to find a Huddll nearby.' : 'Join an event to start building your history.'}
             </p>
           </div>
         ) : (
-          // CARD LIST
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {currentHuddlls.map(huddll => (
-              <div key={huddll.id} style={{
-                backgroundColor: 'white',
-                borderRadius: '24px',
-                padding: '20px',
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02)',
-                border: '1px solid #F1F5F9',
-                position: 'relative',
-                overflow: 'hidden'
-              }}>
-                {/* Status Bar */}
-                <div style={{
-                  position: 'absolute', left: 0, top: 0, bottom: 0, width: '6px',
-                  backgroundColor: getStatusColor(huddll.status)
-                }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
-                <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
+            {/* UPCOMING PLAN CARDS */}
+            {viewMode === 'upcoming' && events.upcoming.map(event => (
+              <div key={event.id} onClick={() => handleViewEvent(event)} style={{ backgroundColor: theme.cardBg, borderRadius: '16px', overflow: 'hidden', border: `1px solid ${theme.divider}`, cursor: 'pointer', transition: 'transform 0.2s' }}
+                   onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+                   onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}>
 
-                  {/* Emoji Icon Box */}
-                  <div style={{
-                    width: '60px', height: '60px', borderRadius: '20px',
-                    backgroundColor: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '32px', flexShrink: 0
-                  }}>
-                    {huddll.emoji}
+                <div style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ fontSize: '32px' }}>
+                    {getCategoryEmoji(event.category)}
                   </div>
-
-                  {/* Content */}
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                       {/* STATUS BADGE */}
-                       {huddll.status === 'active' && (
-                         <span style={{ fontSize: '10px', fontWeight: '800', color: colors.brandBlue, backgroundColor: '#E0F2FE', padding: '4px 8px', borderRadius: '8px', textTransform: 'uppercase' }}>
-                           Locked In
-                         </span>
-                       )}
-                       {huddll.status === 'pending' && (
-                         <span style={{ fontSize: '10px', fontWeight: '800', color: colors.brandYellow, backgroundColor: '#FEF3C7', padding: '4px 8px', borderRadius: '8px', textTransform: 'uppercase' }}>
-                           Waiting for 1 more
-                         </span>
-                       )}
-                       {huddll.status === 'completed' && (
-                         <span style={{ fontSize: '10px', fontWeight: '800', color: colors.textMuted, backgroundColor: '#F1F5F9', padding: '4px 8px', borderRadius: '8px', textTransform: 'uppercase' }}>
-                           Past
-                         </span>
-                       )}
-                       {huddll.status === 'proposed' && (
-                         <span style={{ fontSize: '10px', fontWeight: '800', color: colors.textMuted, backgroundColor: '#F1F5F9', padding: '4px 8px', borderRadius: '8px', textTransform: 'uppercase' }}>
-                           Proposed
-                         </span>
-                       )}
-                    </div>
-
-                    <h3 style={{ fontSize: '18px', fontWeight: '800', color: colors.textMain, margin: '0 0 4px 0', lineHeight: 1.2 }}>
-                      {huddll.title}
-                    </h3>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                       <span style={{ fontSize: '14px' }}>📍</span>
-                       <span style={{ fontSize: '13px', fontWeight: '600', color: colors.textMuted }}>{huddll.venue}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                       <span style={{ fontSize: '14px' }}>🕐</span>
-                       <span style={{ fontSize: '13px', fontWeight: '500', color: colors.textMuted }}>{huddll.time}</span>
-                    </div>
+                  <div>
+                    <div style={{ fontSize: '15px', fontWeight: '600', color: theme.textMain }}>{event.title}</div>
+                    <div style={{ fontSize: '12px', color: theme.textSecondary }}>{formatDate(event.start_time)} • {formatEventTime(event.start_time)}</div>
                   </div>
                 </div>
 
-                {/* Footer */}
-                <div style={{
-                  marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #F1F5F9',
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between'
-                }}>
-                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <div style={{ display: 'flex', paddingLeft: '8px' }}>
-                         {/* Fake Avatars */}
-                         {[...Array(Math.min(3, huddll.attendees))].map((_, i) => (
-                           <div key={i} style={{
-                             width: '24px', height: '24px', borderRadius: '50%', backgroundColor: '#CBD5E1',
-                             border: '2px solid white', marginLeft: '-8px'
-                           }} />
-                         ))}
-                      </div>
-                      <span style={{ fontSize: '12px', fontWeight: '700', color: colors.textMain }}>
-  {huddll.attendees}{huddll.max_attendees ? `/${huddll.max_attendees}` : '+'} Going
-</span>
-                   </div>
-
-                   <span style={{
-                      color: getStatusColor(huddll.status),
-                      fontWeight: '700', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px'
-                   }}>
-                      View Event
-                   </span>
+                <div style={{ padding: '0 16px 16px 16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                    <MapPin size={14} color={theme.textSecondary} />
+                    <span style={{ fontSize: '14px', color: theme.accent, fontWeight: '500' }}>{event.venue_name}</span>
+                  </div>
+                  {event.city && (
+                    <div style={{ fontSize: '13px', color: theme.textSecondary, marginLeft: '20px' }}>{event.city}</div>
+                  )}
                 </div>
 
+                <div style={{ padding: '12px 16px', backgroundColor: '#000000', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Users size={16} color={theme.accent} />
+                    <span style={{ fontSize: '13px', color: theme.accent, fontWeight: '600' }}>{event.interested_count || 1} interested</span>
+                  </div>
+                  <span style={{ fontSize: '12px', color: theme.textSecondary }}>Tap for details</span>
+                </div>
               </div>
             ))}
+
+            {/* PAST RECAP CARDS */}
+            {viewMode === 'past' && events.past.map(event => (
+              <div key={event.id} onClick={() => handleViewEvent(event)} style={{ backgroundColor: theme.cardBg, borderRadius: '16px', overflow: 'hidden', border: `1px solid ${theme.divider}`, cursor: 'pointer', transition: 'transform 0.2s' }}
+                   onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+                   onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}>
+
+                <div style={{ padding: '20px 20px 10px', textAlign: 'center' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 5px' }}>{event.title}</h3>
+                  <div style={{ fontSize: '13px', color: theme.textSecondary }}>
+                    at <span style={{ color: theme.accent }}>{event.venue_name}</span> • {formatDate(event.start_time)}
+                  </div>
+                </div>
+
+                {/* Photo Grid Placeholder */}
+                <div style={{ padding: '10px 15px', display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '4px', height: '200px' }}>
+                   <div style={{ backgroundColor: '#2A2A2A', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#444' }}>
+                      <Camera size={32} />
+                      <div style={{ fontSize: '12px', marginTop: '8px' }}>Photos coming soon</div>
+                   </div>
+                   <div style={{ display: 'grid', gridTemplateRows: '1fr 1fr', gap: '4px' }}>
+                      <div style={{ backgroundColor: '#252525', borderRadius: '8px' }}></div>
+                      <div style={{ backgroundColor: '#252525', borderRadius: '8px' }}></div>
+                   </div>
+                </div>
+
+                <div style={{ padding: '15px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Users size={16} color={theme.textSecondary} />
+                    <span style={{ fontSize: '13px', color: theme.textSecondary }}>
+                      {event.interested_count || 1} attended
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '12px', color: theme.textSecondary }}>View event</span>
+                </div>
+              </div>
+            ))}
+
           </div>
         )}
       </div>
 
+      <EventDetailModal
+        event={selectedEvent}
+        isOpen={!!selectedEvent}
+        onClose={() => setSelectedEvent(null)}
+        onEventUpdated={fetchUserEvents}
+      />
     </div>
   );
 };

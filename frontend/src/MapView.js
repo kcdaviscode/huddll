@@ -1,24 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { GoogleMap, Marker, InfoWindow } from '@react-google-maps/api';
-import { MapPin, Clock, Users, ArrowRight, Plus } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { GoogleMap, Marker, InfoWindow, Circle } from '@react-google-maps/api';
+import { MapPin, Clock, Users, ArrowRight, Plus, Navigation } from 'lucide-react';
 import Header from './Header';
 import CreateEventModal from './CreateEventModal';
 import FilterPanel from './FilterPanel';
 import EventDetailModal from './EventDetailModal';
-
-// CUSTOM MAP THEME: "Vibrant Clean"
-const mapTheme = [
-  { "featureType": "water", "elementType": "geometry", "stylers": [{ "color": "#a6cbe3" }] },
-  { "featureType": "water", "elementType": "labels.text.fill", "stylers": [{ "color": "#92998d" }] },
-  { "featureType": "landscape.man_made", "elementType": "geometry", "stylers": [{ "color": "#f7f9fb" }] },
-  { "featureType": "landscape.natural", "elementType": "geometry", "stylers": [{ "color": "#eff6f3" }] },
-  { "featureType": "poi.park", "elementType": "geometry.fill", "stylers": [{ "color": "#e6f0e3" }] },
-  { "featureType": "poi.park", "elementType": "labels.text.fill", "stylers": [{ "color": "#447530" }] },
-  { "featureType": "road", "elementType": "geometry.fill", "stylers": [{ "color": "#ffffff" }] },
-  { "featureType": "road", "elementType": "labels.text.fill", "stylers": [{ "color": "#616161" }] },
-  { "featureType": "road.highway", "elementType": "geometry", "stylers": [{ "color": "#f8c967" }, { "lightness": 40 }] },
-  { "featureType": "transit.station", "elementType": "labels.text.fill", "stylers": [{ "color": "#4a90ba" }] }
-];
+import { DarkMapStyle } from './MapStyles';
 
 const MapView = () => {
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -27,14 +14,28 @@ const MapView = () => {
   const [events, setEvents] = useState([]);
   const [filteredEvents, setFilteredEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [mapCenter, setMapCenter] = useState({ lat: 39.2904, lng: -76.6122 });
+  const [circleCenter, setCircleCenter] = useState({ lat: 39.2904, lng: -76.6122 });
+  const [showCircle, setShowCircle] = useState(true); // Toggle to force remount
   const [filters, setFilters] = useState({
     categories: [],
+    subcategories: [],
     timeRange: 'all',
     statuses: ['proposed', 'pending', 'active'],
-    distance: '10'
+    distance: 'all',
+    showMyEvents: false
   });
 
-  const center = { lat: 39.2904, lng: -76.6122 };
+  const colors = {
+    bg: '#F8FAFC',
+    header: '#0F172A',
+    brandBlue: '#4A90BA',
+    brandYellow: '#F59E0B',
+    brandGreen: '#10B981',
+    textMain: '#1E293B',
+    textMuted: '#64748B',
+    cardBg: '#FFFFFF'
+  };
 
   const mapStyles = {
     height: "calc(100vh - 150px)",
@@ -42,7 +43,7 @@ const MapView = () => {
   };
 
   const mapOptions = {
-    styles: mapTheme,
+    styles: DarkMapStyle,
     disableDefaultUI: true,
     zoomControl: false,
     streetViewControl: false,
@@ -52,11 +53,44 @@ const MapView = () => {
 
   useEffect(() => {
     fetchEvents();
+
+    const saved = localStorage.getItem('mapCenter');
+    if (saved) {
+      const savedCenter = JSON.parse(saved);
+      setMapCenter(savedCenter);
+      setCircleCenter(savedCenter);
+    } else if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const userLocation = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          };
+          setMapCenter(userLocation);
+          setCircleCenter(userLocation);
+          localStorage.setItem('mapCenter', JSON.stringify(userLocation));
+        },
+        () => {
+          console.log('Using default Baltimore center');
+        }
+      );
+    }
   }, []);
 
   useEffect(() => {
     applyFilters();
-  }, [events, filters]);
+  }, [events, filters, mapCenter]);
+
+  // Update circle by unmounting and remounting when center changes
+  useEffect(() => {
+    if (filters.distance !== 'all') {
+      setShowCircle(false);
+      setTimeout(() => {
+        setCircleCenter(mapCenter);
+        setShowCircle(true);
+      }, 10);
+    }
+  }, [mapCenter, filters.distance]);
 
   const fetchEvents = async () => {
     try {
@@ -74,14 +108,25 @@ const MapView = () => {
   const applyFilters = () => {
     let filtered = [...events];
 
-    // Category filter
+    if (filters.showMyEvents) {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      filtered = filtered.filter(event =>
+        event.interested_user_ids && event.interested_user_ids.includes(Number(user.id))
+      );
+    }
+
     if (filters.categories.length > 0) {
       filtered = filtered.filter(event =>
         filters.categories.includes(event.category)
       );
     }
 
-    // Time range filter
+    if (filters.subcategories && filters.subcategories.length > 0) {
+      filtered = filtered.filter(event =>
+        filters.subcategories.includes(event.subcategory)
+      );
+    }
+
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const tomorrow = new Date(today);
@@ -92,46 +137,53 @@ const MapView = () => {
     weekend.setDate(weekend.getDate() + (6 - today.getDay()));
 
     filtered = filtered.filter(event => {
-      const eventDate = new Date(event.start_time);
+      const eventStart = new Date(event.start_time);
+      const eventEnd = new Date(event.end_time);
+
       switch(filters.timeRange) {
+        case 'happening_now':
+          return now >= eventStart && now <= eventEnd;
         case 'today':
-          return eventDate >= today && eventDate < tomorrow;
+          return eventStart >= today && eventStart < tomorrow;
         case 'tomorrow':
           const dayAfterTomorrow = new Date(tomorrow);
           dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
-          return eventDate >= tomorrow && eventDate < dayAfterTomorrow;
+          return eventStart >= tomorrow && eventStart < dayAfterTomorrow;
         case 'this_week':
-          return eventDate >= today && eventDate <= endOfWeek;
+          return eventStart >= today && eventStart <= endOfWeek;
         case 'this_weekend':
           const sundayEnd = new Date(weekend);
           sundayEnd.setDate(sundayEnd.getDate() + 2);
-          return eventDate >= weekend && eventDate < sundayEnd;
+          return eventStart >= weekend && eventStart < sundayEnd;
         case 'all':
         default:
-          return eventDate >= today;
+          return eventStart >= today;
       }
     });
 
-    // Status filter
     filtered = filtered.filter(event => {
-      const attendeeCount = event.checkins ? event.checkins.length + 1 : 1;
+      const interestedCount = event.interested_count || 1;
+      const minAttendees = event.min_attendees || 3;
+
       let status = 'proposed';
-      if (attendeeCount === 2) status = 'pending';
-      if (attendeeCount >= 3) status = 'active';
+      if (interestedCount >= 2 && interestedCount < minAttendees) status = 'pending';
+      if (interestedCount >= minAttendees) status = 'active';
+
       return filters.statuses.includes(status);
     });
 
-    // Distance filter
-    const maxDistance = parseFloat(filters.distance);
-    filtered = filtered.filter(event => {
-      const distance = getDistance(
-        center.lat,
-        center.lng,
-        parseFloat(event.latitude),
-        parseFloat(event.longitude)
-      );
-      return distance <= maxDistance;
-    });
+    if (filters.distance !== 'all') {
+      const maxDistance = parseFloat(filters.distance);
+      filtered = filtered.filter(event => {
+        const distance = getDistance(
+          mapCenter.lat,
+          mapCenter.lng,
+          parseFloat(event.latitude),
+          parseFloat(event.longitude)
+        );
+        return distance <= maxDistance;
+      });
+    }
 
     setFilteredEvents(filtered);
   };
@@ -149,9 +201,11 @@ const MapView = () => {
   };
 
   const getPinColor = (event) => {
-    const attendeeCount = event.checkins ? event.checkins.length + 1 : 1;
-    if (attendeeCount === 1) return '#94A3B8';
-    if (attendeeCount === 2) return '#F59E0B';
+    const interestedCount = event.interested_count || 1;
+    const minAttendees = event.min_attendees || 3;
+
+    if (interestedCount < 2) return '#94A3B8';
+    if (interestedCount >= 2 && interestedCount < minAttendees) return '#F59E0B';
     return '#4A90BA';
   };
 
@@ -184,7 +238,58 @@ const MapView = () => {
   };
 
   const handleFilterChange = (newFilters) => {
+    if (newFilters.distance !== 'all' && filters.distance === 'all') {
+      if (window.mapInstance) {
+        const currentCenter = {
+          lat: window.mapInstance.getCenter().lat(),
+          lng: window.mapInstance.getCenter().lng()
+        };
+        setMapCenter(currentCenter);
+        setCircleCenter(currentCenter);
+      }
+    }
     setFilters(newFilters);
+  };
+
+  const handleMapIdle = useCallback(() => {
+    if (window.mapInstance) {
+      const newCenter = {
+        lat: window.mapInstance.getCenter().lat(),
+        lng: window.mapInstance.getCenter().lng()
+      };
+      const latDiff = Math.abs(newCenter.lat - mapCenter.lat);
+      const lngDiff = Math.abs(newCenter.lng - mapCenter.lng);
+
+      if (latDiff > 0.0001 || lngDiff > 0.0001) {
+        setMapCenter(newCenter);
+        localStorage.setItem('mapCenter', JSON.stringify(newCenter));
+      }
+    }
+  }, [mapCenter]);
+
+  const handleRecenter = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const userLocation = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          };
+          setMapCenter(userLocation);
+          setCircleCenter(userLocation);
+          localStorage.setItem('mapCenter', JSON.stringify(userLocation));
+          if (window.mapInstance) {
+            window.mapInstance.panTo(userLocation);
+          }
+        },
+        (error) => {
+          console.error('Location error:', error);
+          alert('Please enable location services to use this feature');
+        }
+      );
+    } else {
+      alert('Geolocation is not supported by your browser');
+    }
   };
 
   if (loading) {
@@ -197,7 +302,7 @@ const MapView = () => {
   }
 
   return (
-    <div style={{ backgroundColor: '#F8FAFC', minHeight: '100vh' }}>
+    <div style={{ backgroundColor: '#121212', minHeight: '100vh' }}>
       <Header />
 
       <div style={{ marginTop: '70px' }}>
@@ -208,9 +313,32 @@ const MapView = () => {
         <GoogleMap
           mapContainerStyle={mapStyles}
           zoom={14}
-          center={center}
+          center={mapCenter}
           options={mapOptions}
+          onLoad={(map) => {
+            window.mapInstance = map;
+          }}
+          onIdle={handleMapIdle}
         >
+          {/* Distance Circle - DISABLED FOR NOW due to technical issues */}
+{/* We'll revisit this feature later */}
+{false && filters.distance !== 'all' && (
+  <Circle
+    center={circleCenter}
+    radius={parseFloat(filters.distance) * 1609.34}
+    options={{
+      strokeColor: '#4A90BA',
+      strokeOpacity: 0.6,
+      strokeWeight: 2,
+      fillColor: '#4A90BA',
+      fillOpacity: 0.1,
+      clickable: false,
+      editable: false,
+      zIndex: 1
+    }}
+  />
+)}
+
           {filteredEvents.map((event) => (
             <Marker
               key={event.id}
@@ -259,8 +387,9 @@ const MapView = () => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                     <Users size={14} color="#0F172A" />
                     <span style={{ fontSize: '13px', fontWeight: '700', color: '#0F172A' }}>
-                      {selectedEvent.checkins ? selectedEvent.checkins.length + 1 : 1}
-                      <span style={{ fontWeight: '500', color: '#64748B', marginLeft: '4px' }}>going</span>
+                      {selectedEvent.interested_count || 1}
+                      {selectedEvent.max_attendees ? `/${selectedEvent.max_attendees}` : '+'}
+                      <span style={{ fontWeight: '500', color: '#64748B', marginLeft: '4px' }}>interested</span>
                     </span>
                   </div>
 
@@ -280,6 +409,40 @@ const MapView = () => {
           )}
         </GoogleMap>
       </div>
+
+      <button
+        onClick={handleRecenter}
+        style={{
+          position: 'fixed',
+          bottom: '120px',
+          left: '24px',
+          backgroundColor: '#FFFFFF',
+          color: colors.header,
+          padding: '16px',
+          borderRadius: '50%',
+          border: '2px solid #E2E8F0',
+          cursor: 'pointer',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          width: '56px',
+          height: '56px',
+          transition: 'all 0.2s ease',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'scale(1.1)';
+          e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.15)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'scale(1)';
+          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
+        }}
+        title="Return to my location"
+      >
+        <Navigation size={24} strokeWidth={2.5} />
+      </button>
 
       <button
         onClick={() => setIsCreateModalOpen(true)}
@@ -314,7 +477,7 @@ const MapView = () => {
       />
 
       <EventDetailModal
-        event={detailModalEvent}
+        event={detailModalEvent ? events.find(e => e.id === detailModalEvent.id) || detailModalEvent : null}
         isOpen={!!detailModalEvent}
         onClose={() => setDetailModalEvent(null)}
         onEventUpdated={fetchEvents}

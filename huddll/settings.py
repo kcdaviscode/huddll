@@ -24,6 +24,10 @@ INSTALLED_APPS = [
     'users',
 ]
 
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+]
+
 CORS_ALLOW_ALL_ORIGINS = True  # Temporary for testing
 
 MIDDLEWARE = [

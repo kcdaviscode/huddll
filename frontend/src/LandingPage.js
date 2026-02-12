@@ -142,7 +142,7 @@ const LandingPage = ({ onEnter, onGoToLogin }) => {
 
             <input
               type="text"
-              placeholder="First Name"
+              placeholder="Full Name"
               value={formData.name}
               onChange={(e) => setFormData({...formData, name: e.target.value})}
               style={{
@@ -226,7 +226,8 @@ const LandingPage = ({ onEnter, onGoToLogin }) => {
             fontSize: '14px',
             marginTop: '16px'
           }}>
-            Already have an account? <a href="#" onClick={(e) => { e.preventDefault(); if (onGoToLogin) onGoToLogin(); }} style={{ color: '#4A90BA', fontWeight: 'bold', textDecoration: 'none' }}>Log in</a>
+            Already have an account? <a href="#" onClick={(e) => { e.preventDefault(); navigate('/login'); }}>Log in</a>
+
           </p>
 
         </div>
