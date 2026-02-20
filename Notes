@@ -1,0 +1,16 @@
+# TO START HUDDLL SERVERS:
+
+# TERMINAL 1 - Backend (Django + WebSockets):
+cd /Users/kevindavis/PycharmProjects/huddll
+./start-django.sh
+
+# TERMINAL 2 - React Frontend:
+cd /Users/kevindavis/PycharmProjects/huddll
+./start-react.sh
+
+# Then open browser to: http://localhost:3000
+
+
+# If already in /Users/kevindavis/PycharmProjects/huddll:
+Terminal 1: ./start-django.sh
+Terminal 2: ./start-react.sh

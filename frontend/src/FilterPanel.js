@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import theme from './theme';
 
 const FilterPanel = ({ filters, onFilterChange }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -76,32 +77,18 @@ const FilterPanel = ({ filters, onFilterChange }) => {
   ];
 
   const statusOptions = [
-    { id: 'proposed', label: 'Proposed', color: '#9CA3AF' },
-    { id: 'pending', label: 'Pending', color: '#F59E0B' },
-    { id: 'active', label: 'Active', color: '#4A90BA' }
+    { id: 'proposed', label: 'Proposed', color: theme.textLight },
+    { id: 'pending', label: 'Pending', color: theme.peach },
+    { id: 'active', label: 'Active', color: theme.skyBlue }
   ];
 
   const distanceOptions = [
-  { id: '1', label: '1 mi' },
-  { id: '5', label: '5 mi' },
-  { id: '10', label: '10 mi' },
-  { id: '25', label: '25 mi' },
-  { id: 'all', label: 'All' }
-];
-
-  const colors = {
-    bg: '#F8FAFC',
-    cardBg: '#FFFFFF',
-    header: '#0F172A',
-    brandBlue: '#4A90BA',
-    brandYellow: '#F59E0B',
-    brandGrey: '#9CA3AF',
-    brandGreen: '#10B981',
-    inputBg: '#F8FAFC',
-    textMain: '#1E293B',
-    textMuted: '#64748B',
-    border: '#E2E8F0'
-  };
+    { id: '1', label: '1 mi' },
+    { id: '5', label: '5 mi' },
+    { id: '10', label: '10 mi' },
+    { id: '25', label: '25 mi' },
+    { id: 'all', label: 'All' }
+  ];
 
   const toggleCategory = (categoryId) => {
     const newCategories = pendingFilters.categories.includes(categoryId)
@@ -131,17 +118,17 @@ const FilterPanel = ({ filters, onFilterChange }) => {
   };
 
   const clearFilters = () => {
-  const clearedFilters = {
-    categories: [],
-    subcategories: [],
-    timeRange: 'all',
-    statuses: ['proposed', 'pending', 'active'],
-    distance: 'all',
-    showMyEvents: false
+    const clearedFilters = {
+      categories: [],
+      subcategories: [],
+      timeRange: 'all',
+      statuses: ['proposed', 'pending', 'active'],
+      distance: 'all',
+      showMyEvents: false
+    };
+    setPendingFilters(clearedFilters);
+    onFilterChange(clearedFilters);
   };
-  setPendingFilters(clearedFilters);
-  onFilterChange(clearedFilters);
-};
 
   const activeFilterCount =
     filters.categories.length +
@@ -168,8 +155,8 @@ const FilterPanel = ({ filters, onFilterChange }) => {
 
   return (
     <div style={{
-      backgroundColor: colors.cardBg,
-      borderBottom: `1px solid ${colors.border}`,
+      backgroundColor: theme.slate,
+      borderBottom: `1px solid ${theme.border}`,
       position: 'relative',
       zIndex: 100,
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
@@ -179,7 +166,7 @@ const FilterPanel = ({ filters, onFilterChange }) => {
         style={{
           width: '100%',
           padding: '16px 24px',
-          backgroundColor: colors.cardBg,
+          backgroundColor: theme.slate,
           border: 'none',
           display: 'flex',
           justifyContent: 'space-between',
@@ -187,7 +174,7 @@ const FilterPanel = ({ filters, onFilterChange }) => {
           cursor: 'pointer',
           fontSize: '14px',
           fontWeight: '800',
-          color: colors.textMain
+          color: theme.textMain
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -195,18 +182,19 @@ const FilterPanel = ({ filters, onFilterChange }) => {
           <span>Filters</span>
           {activeFilterCount > 0 && (
             <span style={{
-              backgroundColor: colors.brandBlue,
+              background: theme.accentGradient,
               color: 'white',
               padding: '2px 8px',
               borderRadius: '12px',
               fontSize: '11px',
-              fontWeight: '800'
+              fontWeight: '800',
+              boxShadow: `0 0 12px ${theme.skyBlue}40`
             }}>
               {activeFilterCount}
             </span>
           )}
         </div>
-        <span style={{ fontSize: '16px', color: colors.textMuted }}>
+        <span style={{ fontSize: '16px', color: theme.textSecondary }}>
           {isExpanded ? '▲' : '▼'}
         </span>
       </button>
@@ -214,8 +202,8 @@ const FilterPanel = ({ filters, onFilterChange }) => {
       {isExpanded && (
         <div style={{
           padding: '24px',
-          backgroundColor: colors.bg,
-          borderTop: `1px solid ${colors.border}`
+          backgroundColor: theme.deepNavy,
+          borderTop: `1px solid ${theme.border}`
         }}>
 
           {/* My Events Toggle */}
@@ -227,17 +215,18 @@ const FilterPanel = ({ filters, onFilterChange }) => {
                 maxWidth: '400px',
                 padding: '14px 20px',
                 borderRadius: '16px',
-                border: `2px solid ${pendingFilters.showMyEvents ? colors.brandBlue : colors.border}`,
+                border: `2px solid ${pendingFilters.showMyEvents ? theme.skyBlue : theme.border}`,
                 fontSize: '15px',
                 fontWeight: '800',
                 cursor: 'pointer',
-                backgroundColor: pendingFilters.showMyEvents ? colors.brandBlue : colors.cardBg,
-                color: pendingFilters.showMyEvents ? 'white' : colors.textMain,
+                background: pendingFilters.showMyEvents ? theme.accentGradient : theme.slateLight,
+                color: 'white',
                 transition: 'all 0.2s ease',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '8px'
+                gap: '8px',
+                boxShadow: pendingFilters.showMyEvents ? `0 4px 16px ${theme.skyBlue}40` : 'none'
               }}
             >
               <span style={{ fontSize: '18px' }}>👤</span>
@@ -252,7 +241,7 @@ const FilterPanel = ({ filters, onFilterChange }) => {
               marginBottom: '12px',
               fontSize: '13px',
               fontWeight: '800',
-              color: colors.textMain,
+              color: theme.textMain,
               textTransform: 'uppercase',
               letterSpacing: '0.5px',
               textAlign: 'center'
@@ -267,14 +256,14 @@ const FilterPanel = ({ filters, onFilterChange }) => {
                   style={{
                     padding: '10px 16px',
                     borderRadius: '50px',
-                    border: 'none',
+                    border: `1px solid ${pendingFilters.timeRange === option.id ? theme.skyBlue : theme.border}`,
                     fontSize: '14px',
                     fontWeight: '700',
                     cursor: 'pointer',
-                    backgroundColor: pendingFilters.timeRange === option.id ? colors.brandBlue : colors.cardBg,
-                    color: pendingFilters.timeRange === option.id ? 'white' : colors.textMuted,
+                    background: pendingFilters.timeRange === option.id ? theme.accentGradient : theme.slateLight,
+                    color: pendingFilters.timeRange === option.id ? 'white' : theme.textSecondary,
                     transition: 'all 0.2s ease',
-                    boxShadow: pendingFilters.timeRange === option.id ? '0 4px 12px rgba(74, 144, 186, 0.3)' : 'none'
+                    boxShadow: pendingFilters.timeRange === option.id ? `0 4px 12px ${theme.skyBlue}40` : 'none'
                   }}
                 >
                   {option.label}
@@ -290,7 +279,7 @@ const FilterPanel = ({ filters, onFilterChange }) => {
               marginBottom: '12px',
               fontSize: '13px',
               fontWeight: '800',
-              color: colors.textMain,
+              color: theme.textMain,
               textTransform: 'uppercase',
               letterSpacing: '0.5px',
               textAlign: 'center'
@@ -305,14 +294,14 @@ const FilterPanel = ({ filters, onFilterChange }) => {
                   style={{
                     padding: '10px 16px',
                     borderRadius: '50px',
-                    border: 'none',
+                    border: `1px solid ${pendingFilters.categories.includes(cat.id) ? theme.skyBlue : theme.border}`,
                     fontSize: '14px',
                     fontWeight: '700',
                     cursor: 'pointer',
-                    backgroundColor: pendingFilters.categories.includes(cat.id) ? colors.brandBlue : colors.cardBg,
-                    color: pendingFilters.categories.includes(cat.id) ? 'white' : colors.textMuted,
+                    background: pendingFilters.categories.includes(cat.id) ? theme.accentGradient : theme.slateLight,
+                    color: pendingFilters.categories.includes(cat.id) ? 'white' : theme.textSecondary,
                     transition: 'all 0.2s ease',
-                    boxShadow: pendingFilters.categories.includes(cat.id) ? '0 4px 12px rgba(74, 144, 186, 0.3)' : 'none'
+                    boxShadow: pendingFilters.categories.includes(cat.id) ? `0 4px 12px ${theme.skyBlue}40` : 'none'
                   }}
                 >
                   <span style={{ marginRight: '6px' }}>{cat.emoji}</span>
@@ -330,7 +319,7 @@ const FilterPanel = ({ filters, onFilterChange }) => {
                 marginBottom: '12px',
                 fontSize: '13px',
                 fontWeight: '800',
-                color: colors.textMain,
+                color: theme.textMain,
                 textTransform: 'uppercase',
                 letterSpacing: '0.5px',
                 textAlign: 'center'
@@ -345,14 +334,14 @@ const FilterPanel = ({ filters, onFilterChange }) => {
                     style={{
                       padding: '8px 14px',
                       borderRadius: '50px',
-                      border: 'none',
+                      border: `1px solid ${pendingFilters.subcategories?.includes(sub.id) ? theme.skyBlue : theme.border}`,
                       fontSize: '13px',
                       fontWeight: '700',
                       cursor: 'pointer',
-                      backgroundColor: pendingFilters.subcategories?.includes(sub.id) ? colors.brandBlue : colors.cardBg,
-                      color: pendingFilters.subcategories?.includes(sub.id) ? 'white' : colors.textMuted,
+                      background: pendingFilters.subcategories?.includes(sub.id) ? theme.accentGradient : theme.slateLight,
+                      color: pendingFilters.subcategories?.includes(sub.id) ? 'white' : theme.textSecondary,
                       transition: 'all 0.2s ease',
-                      boxShadow: pendingFilters.subcategories?.includes(sub.id) ? '0 4px 12px rgba(74, 144, 186, 0.3)' : 'none'
+                      boxShadow: pendingFilters.subcategories?.includes(sub.id) ? `0 4px 12px ${theme.skyBlue}40` : 'none'
                     }}
                   >
                     {sub.label}
@@ -369,7 +358,7 @@ const FilterPanel = ({ filters, onFilterChange }) => {
               marginBottom: '12px',
               fontSize: '13px',
               fontWeight: '800',
-              color: colors.textMain,
+              color: theme.textMain,
               textTransform: 'uppercase',
               letterSpacing: '0.5px',
               textAlign: 'center'
@@ -384,14 +373,14 @@ const FilterPanel = ({ filters, onFilterChange }) => {
                   style={{
                     padding: '10px 16px',
                     borderRadius: '50px',
-                    border: 'none',
+                    border: `1px solid ${pendingFilters.statuses.includes(option.id) ? option.color : theme.border}`,
                     fontSize: '14px',
                     fontWeight: '700',
                     cursor: 'pointer',
-                    backgroundColor: pendingFilters.statuses.includes(option.id) ? option.color : colors.cardBg,
-                    color: pendingFilters.statuses.includes(option.id) ? 'white' : colors.textMuted,
+                    backgroundColor: pendingFilters.statuses.includes(option.id) ? option.color : theme.slateLight,
+                    color: 'white',
                     transition: 'all 0.2s ease',
-                    boxShadow: pendingFilters.statuses.includes(option.id) ? `0 4px 12px ${option.color}33` : 'none'
+                    boxShadow: pendingFilters.statuses.includes(option.id) ? `0 4px 12px ${option.color}40` : 'none'
                   }}
                 >
                   {option.label}
@@ -407,7 +396,7 @@ const FilterPanel = ({ filters, onFilterChange }) => {
               marginBottom: '12px',
               fontSize: '13px',
               fontWeight: '800',
-              color: colors.textMain,
+              color: theme.textMain,
               textTransform: 'uppercase',
               letterSpacing: '0.5px',
               textAlign: 'center'
@@ -422,14 +411,14 @@ const FilterPanel = ({ filters, onFilterChange }) => {
                   style={{
                     padding: '10px 16px',
                     borderRadius: '50px',
-                    border: 'none',
+                    border: `1px solid ${pendingFilters.distance === option.id ? theme.skyBlue : theme.border}`,
                     fontSize: '14px',
                     fontWeight: '700',
                     cursor: 'pointer',
-                    backgroundColor: pendingFilters.distance === option.id ? colors.brandBlue : colors.cardBg,
-                    color: pendingFilters.distance === option.id ? 'white' : colors.textMuted,
+                    background: pendingFilters.distance === option.id ? theme.accentGradient : theme.slateLight,
+                    color: pendingFilters.distance === option.id ? 'white' : theme.textSecondary,
                     transition: 'all 0.2s ease',
-                    boxShadow: pendingFilters.distance === option.id ? '0 4px 12px rgba(74, 144, 186, 0.3)' : 'none'
+                    boxShadow: pendingFilters.distance === option.id ? `0 4px 12px ${theme.skyBlue}40` : 'none'
                   }}
                 >
                   {option.label}
@@ -446,7 +435,7 @@ const FilterPanel = ({ filters, onFilterChange }) => {
                 flex: 1,
                 maxWidth: '300px',
                 padding: '14px 20px',
-                backgroundColor: colors.brandBlue,
+                background: theme.accentGradient,
                 color: 'white',
                 border: 'none',
                 borderRadius: '16px',
@@ -454,8 +443,10 @@ const FilterPanel = ({ filters, onFilterChange }) => {
                 fontWeight: '800',
                 cursor: 'pointer',
                 transition: 'all 0.2s',
-                boxShadow: '0 4px 12px rgba(74, 144, 186, 0.3)'
+                boxShadow: `0 4px 16px ${theme.skyBlue}60`
               }}
+              onMouseEnter={(e) => e.currentTarget.style.boxShadow = `0 8px 24px ${theme.skyBlue}80`}
+              onMouseLeave={(e) => e.currentTarget.style.boxShadow = `0 4px 16px ${theme.skyBlue}60`}
             >
               Apply Filters
             </button>
@@ -465,9 +456,9 @@ const FilterPanel = ({ filters, onFilterChange }) => {
                 flex: 1,
                 maxWidth: '300px',
                 padding: '14px 20px',
-                backgroundColor: colors.textMuted,
-                color: 'white',
-                border: 'none',
+                backgroundColor: theme.slateLight,
+                color: theme.textMain,
+                border: `1px solid ${theme.border}`,
                 borderRadius: '16px',
                 fontSize: '15px',
                 fontWeight: '800',

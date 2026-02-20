@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MapPin, Clock, Users, X, Navigation, Trash2 } from 'lucide-react';
+import EventChat from './EventChat';
+import theme from './theme';
 
 const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
   const [joining, setJoining] = useState(false);
@@ -13,19 +15,6 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
   }, [event?.id]);
 
   if (!isOpen || !event) return null;
-
-  const colors = {
-    overlay: 'rgba(15, 23, 42, 0.75)',
-    bg: '#FFFFFF',
-    headerBg: '#0F172A',
-    brandBlue: '#4A90BA',
-    accentLight: '#F0F9FF',
-    textMain: '#0F172A',
-    textMuted: '#64748B',
-    border: '#E2E8F0',
-    danger: '#EF4444',
-    dangerLight: '#FEF2F2'
-  };
 
   const getCategoryEmoji = (category) => {
     const emojiMap = {
@@ -148,25 +137,30 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
   return (
     <div
       style={{
-        position: 'fixed', inset: 0,
-        backgroundColor: colors.overlay,
-        backdropFilter: 'blur(4px)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        zIndex: 2000, padding: '20px',
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: 'rgba(15, 23, 42, 0.85)',
+        backdropFilter: 'blur(8px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 2000,
+        padding: '20px',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
       }}
       onClick={onClose}
     >
       <div
         style={{
-          backgroundColor: colors.bg,
-          borderRadius: '32px',
+          backgroundColor: theme.slate,
+          borderRadius: '24px',
           maxWidth: '480px',
           width: '100%',
           maxHeight: '85vh',
           overflowY: 'auto',
           overflowX: 'hidden',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
+          border: `1px solid ${theme.border}`,
           position: 'relative',
           display: 'flex',
           flexDirection: 'column'
@@ -176,43 +170,67 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
 
         {/* HERO HEADER */}
         <div style={{
-          backgroundColor: colors.headerBg,
+          background: theme.gradient,
           padding: '40px 32px 32px',
-          color: 'white',
+          color: theme.textMain,
           position: 'relative',
           overflow: 'hidden',
-          flexShrink: 0
+          flexShrink: 0,
+          borderRadius: '24px 24px 0 0'
         }}>
           <div style={{
-            position: 'absolute', top: '-50%', right: '-20%',
-            width: '300px', height: '300px',
-            backgroundColor: '#4A90BA', opacity: 0.2,
-            filter: 'blur(60px)', borderRadius: '50%'
+            position: 'absolute',
+            top: '-50%',
+            right: '-20%',
+            width: '300px',
+            height: '300px',
+            background: `radial-gradient(circle, ${theme.skyBlue}40 0%, transparent 70%)`,
+            filter: 'blur(60px)'
           }} />
 
           <button
             onClick={onClose}
             style={{
-              position: 'absolute', top: '24px', right: '24px',
-              background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%',
-              width: '36px', height: '36px', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'white', backdropFilter: 'blur(4px)', zIndex: 10
+              position: 'absolute',
+              top: '24px',
+              right: '24px',
+              background: theme.slateLight,
+              border: `1px solid ${theme.border}`,
+              borderRadius: '50%',
+              width: '36px',
+              height: '36px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: theme.textMain,
+              backdropFilter: 'blur(4px)',
+              zIndex: 10
             }}
           >
             <X size={20} />
           </button>
 
-          {/* Delete Button - Only show for event creator */}
+          {/* Delete Button */}
           {isEventCreator() && (
             <button
               onClick={() => setShowDeleteConfirm(true)}
               style={{
-                position: 'absolute', top: '24px', left: '24px',
-                background: 'rgba(239, 68, 68, 0.2)', border: 'none', borderRadius: '50%',
-                width: '36px', height: '36px', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: '#EF4444', backdropFilter: 'blur(4px)', zIndex: 10
+                position: 'absolute',
+                top: '24px',
+                left: '24px',
+                background: `${theme.error}30`,
+                border: `1px solid ${theme.error}`,
+                borderRadius: '50%',
+                width: '36px',
+                height: '36px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: theme.error,
+                backdropFilter: 'blur(4px)',
+                zIndex: 10
               }}
               title="Delete Event"
             >
@@ -221,21 +239,31 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
           )}
 
           <div style={{ position: 'relative', zIndex: 2 }}>
-            <div style={{ fontSize: '56px', marginBottom: '16px', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.2))' }}>
+            <div style={{ fontSize: '56px', marginBottom: '16px', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.3))' }}>
               {getCategoryEmoji(event.category)}
             </div>
             <h2 style={{
-              margin: 0, fontSize: '28px', fontWeight: '900',
-              letterSpacing: '-0.5px', lineHeight: '1.1',
-              wordBreak: 'break-word'
+              margin: 0,
+              fontSize: '28px',
+              fontWeight: '900',
+              letterSpacing: '-0.5px',
+              lineHeight: '1.1',
+              wordBreak: 'break-word',
+              color: theme.textMain
             }}>
               {event.title}
             </h2>
             <div style={{
-              display: 'inline-flex', marginTop: '12px',
-              backgroundColor: 'rgba(255,255,255,0.15)', padding: '6px 12px',
-              borderRadius: '20px', fontSize: '13px', fontWeight: '600',
-              textTransform: 'capitalize'
+              display: 'inline-flex',
+              marginTop: '12px',
+              backgroundColor: theme.slateLight,
+              padding: '6px 12px',
+              borderRadius: '20px',
+              fontSize: '13px',
+              fontWeight: '600',
+              textTransform: 'capitalize',
+              color: theme.textSecondary,
+              border: `1px solid ${theme.border}`
             }}>
               {event.category}
             </div>
@@ -247,10 +275,17 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
 
           {error && (
             <div style={{
-              backgroundColor: colors.dangerLight, color: colors.danger,
-              padding: '12px 16px', borderRadius: '16px',
-              fontSize: '14px', fontWeight: '600', marginBottom: '24px',
-              display: 'flex', alignItems: 'center', gap: '8px'
+              backgroundColor: `${theme.error}20`,
+              color: theme.error,
+              padding: '12px 16px',
+              borderRadius: '16px',
+              fontSize: '14px',
+              fontWeight: '600',
+              marginBottom: '24px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              border: `1px solid ${theme.error}`
             }}>
               <span style={{ fontSize: '18px' }}>⚠️</span> {error}
             </div>
@@ -259,16 +294,16 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
           {/* Delete Confirmation */}
           {showDeleteConfirm && (
             <div style={{
-              backgroundColor: colors.dangerLight,
+              backgroundColor: theme.slateLight,
               padding: '20px',
               borderRadius: '16px',
               marginBottom: '24px',
-              border: `2px solid ${colors.danger}`
+              border: `2px solid ${theme.error}`
             }}>
-              <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: '800', color: colors.danger }}>
+              <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: '800', color: theme.error }}>
                 Delete this event?
               </h3>
-              <p style={{ margin: '0 0 16px 0', fontSize: '14px', color: colors.textMuted }}>
+              <p style={{ margin: '0 0 16px 0', fontSize: '14px', color: theme.textSecondary }}>
                 This will permanently delete the event. {event.interested_count > 1 ? `${event.interested_count} people are interested.` : ''}
               </p>
               <div style={{ display: 'flex', gap: '12px' }}>
@@ -278,7 +313,7 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
                   style={{
                     flex: 1,
                     padding: '12px',
-                    backgroundColor: colors.danger,
+                    backgroundColor: theme.error,
                     color: 'white',
                     border: 'none',
                     borderRadius: '12px',
@@ -296,9 +331,9 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
                   style={{
                     flex: 1,
                     padding: '12px',
-                    backgroundColor: colors.textMuted,
-                    color: 'white',
-                    border: 'none',
+                    backgroundColor: theme.slateLight,
+                    color: theme.textMain,
+                    border: `1px solid ${theme.border}`,
                     borderRadius: '12px',
                     fontSize: '14px',
                     fontWeight: '700',
@@ -314,67 +349,88 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
           {/* INFO ROWS CONTAINER */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', marginBottom: '32px' }}>
 
-            {/* 1. Location Row */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', position: 'relative' }}>
+            {/* Location Row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               <div style={{
-                width: '48px', height: '48px', borderRadius: '16px',
-                backgroundColor: colors.accentLight, color: colors.brandBlue,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                position: 'absolute', left: 0
+                width: '48px',
+                height: '48px',
+                borderRadius: '16px',
+                background: `${theme.skyBlue}20`,
+                color: theme.skyBlue,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                border: `1px solid ${theme.skyBlue}40`,
+                boxShadow: `0 0 20px ${theme.skyBlue}20`
               }}>
                 <MapPin size={24} />
               </div>
 
-              <div style={{ flex: 1, textAlign: 'center' }}>
-                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: colors.textMain }}>
+              <div style={{ flex: 1 }}>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: theme.textMain }}>
                   {event.venue_name}
                 </h3>
-                <p style={{ margin: '2px 0 4px 0', fontSize: '14px', color: colors.textMuted }}>
+                <p style={{ margin: '2px 0 4px 0', fontSize: '14px', color: theme.textSecondary }}>
                   {event.city || "Baltimore, MD"}
                 </p>
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: '700', color: colors.brandBlue, cursor: 'pointer' }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: '700', color: theme.skyBlue, cursor: 'pointer' }}>
                    <Navigation size={12} /> Get Directions
                 </div>
               </div>
             </div>
 
-            {/* 2. Time Row */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', position: 'relative' }}>
+            {/* Time Row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               <div style={{
-                width: '48px', height: '48px', borderRadius: '16px',
-                backgroundColor: colors.accentLight, color: colors.brandBlue,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                position: 'absolute', left: 0
+                width: '48px',
+                height: '48px',
+                borderRadius: '16px',
+                background: `${theme.indigo}20`,
+                color: theme.indigo,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                border: `1px solid ${theme.indigo}40`,
+                boxShadow: `0 0 20px ${theme.indigo}20`
               }}>
                 <Clock size={24} />
               </div>
 
-              <div style={{ flex: 1, textAlign: 'center' }}>
-                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: colors.textMain }}>
+              <div style={{ flex: 1 }}>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: theme.textMain }}>
                   {timeData.day}, {timeData.time}
                 </h3>
-                <p style={{ margin: '2px 0 0 0', fontSize: '14px', color: colors.textMuted }}>
+                <p style={{ margin: '2px 0 0 0', fontSize: '14px', color: theme.textSecondary }}>
                   {timeData.date}
                 </p>
               </div>
             </div>
 
-            {/* 3. Attendees Row */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', position: 'relative' }}>
+            {/* Attendees Row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               <div style={{
-                width: '48px', height: '48px', borderRadius: '16px',
-                backgroundColor: colors.accentLight, color: colors.brandBlue,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                position: 'absolute', left: 0
+                width: '48px',
+                height: '48px',
+                borderRadius: '16px',
+                background: `${theme.teal}20`,
+                color: theme.teal,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                border: `1px solid ${theme.teal}40`,
+                boxShadow: `0 0 20px ${theme.teal}20`
               }}>
                 <Users size={24} />
               </div>
 
-              <div style={{ flex: 1, textAlign: 'center' }}>
-                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: colors.textMain }}>
+              <div style={{ flex: 1 }}>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: theme.textMain }}>
                   Who's Going?
                 </h3>
-                <p style={{ margin: '2px 0 0 0', fontSize: '14px', color: colors.textMuted }}>
+                <p style={{ margin: '2px 0 0 0', fontSize: '14px', color: theme.textSecondary }}>
                   {event.interested_count || 1} {(event.interested_count || 1) === 1 ? 'person' : 'people'} interested
                 </p>
               </div>
@@ -386,10 +442,15 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
           <div style={{ marginTop: 'auto' }}>
             {isEventCreator() ? (
               <div style={{
-                width: '100%', padding: '16px',
-                backgroundColor: '#F1F5F9', color: colors.textMuted,
-                borderRadius: '20px', fontSize: '15px', fontWeight: '700',
-                textAlign: 'center', border: '1px dashed #CBD5E1'
+                width: '100%',
+                padding: '16px',
+                backgroundColor: theme.slateLight,
+                color: theme.textSecondary,
+                borderRadius: '20px',
+                fontSize: '15px',
+                fontWeight: '700',
+                textAlign: 'center',
+                border: `1px dashed ${theme.border}`
               }}>
                 You are hosting this Huddll
               </div>
@@ -397,11 +458,16 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
               <div>
                 <button
                   style={{
-                    width: '100%', padding: '20px',
-                    backgroundColor: '#10B981',
-                    color: 'white', border: 'none', borderRadius: '24px',
-                    fontSize: '18px', fontWeight: '800', cursor: 'default',
-                    boxShadow: '0 10px 25px -5px rgba(16, 185, 129, 0.4)',
+                    width: '100%',
+                    padding: '20px',
+                    background: `linear-gradient(135deg, ${theme.success}, ${theme.teal})`,
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '20px',
+                    fontSize: '18px',
+                    fontWeight: '800',
+                    cursor: 'default',
+                    boxShadow: `0 10px 25px -5px ${theme.success}60`,
                   }}
                 >
                   You're Going ✓
@@ -410,10 +476,16 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
                   onClick={handleLeave}
                   disabled={joining}
                   style={{
-                    width: '100%', padding: '12px', marginTop: '12px',
+                    width: '100%',
+                    padding: '12px',
+                    marginTop: '12px',
                     backgroundColor: 'transparent',
-                    color: '#EF4444', border: '2px solid #EF4444', borderRadius: '16px',
-                    fontSize: '14px', fontWeight: '700', cursor: joining ? 'not-allowed' : 'pointer',
+                    color: theme.error,
+                    border: `2px solid ${theme.error}`,
+                    borderRadius: '16px',
+                    fontSize: '14px',
+                    fontWeight: '700',
+                    cursor: joining ? 'not-allowed' : 'pointer',
                   }}
                 >
                   {joining ? 'Leaving...' : 'Can\'t Make It'}
@@ -424,11 +496,16 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
                 onClick={handleJoin}
                 disabled={joining}
                 style={{
-                  width: '100%', padding: '20px',
-                  backgroundColor: joining ? colors.textMuted : colors.brandBlue,
-                  color: 'white', border: 'none', borderRadius: '24px',
-                  fontSize: '18px', fontWeight: '800', cursor: joining ? 'not-allowed' : 'pointer',
-                  boxShadow: '0 10px 25px -5px rgba(74, 144, 186, 0.4)',
+                  width: '100%',
+                  padding: '20px',
+                  background: joining ? theme.slateLight : theme.accentGradient,
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '20px',
+                  fontSize: '18px',
+                  fontWeight: '800',
+                  cursor: joining ? 'not-allowed' : 'pointer',
+                  boxShadow: `0 10px 25px -5px ${theme.skyBlue}60`,
                   transition: 'transform 0.2s',
                   transform: 'scale(1)'
                 }}
@@ -440,6 +517,24 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
               </button>
             )}
           </div>
+
+          {/* EVENT CHAT */}
+          {isUserInterested() && (
+            <div style={{ marginTop: '32px', paddingTop: '32px', borderTop: `1px solid ${theme.border}` }}>
+              <h3 style={{
+                margin: '0 0 16px 0',
+                fontSize: '20px',
+                fontWeight: '800',
+                color: theme.textMain
+              }}>
+                💬 Event Chat
+              </h3>
+              <EventChat
+                eventId={event.id}
+                currentUser={JSON.parse(localStorage.getItem('user'))}
+              />
+            </div>
+          )}
 
         </div>
       </div>

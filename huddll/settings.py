@@ -11,6 +11,7 @@ DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -22,6 +23,9 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',  # Add this too
     'events',
     'users',
+    'chat',
+    'channels',
+    'notifications',
 ]
 
 AUTHENTICATION_BACKENDS = [
@@ -99,3 +103,14 @@ REST_FRAMEWORK = {
 CHECK_IN_RADIUS_METERS = 100
 EVENT_BUFFER_MINUTES = 30
 
+# Channels configuration
+ASGI_APPLICATION = 'huddll.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [('127.0.0.1', 6379)],
+        },
+    },
+}
