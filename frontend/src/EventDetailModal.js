@@ -170,23 +170,99 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
 
         {/* HERO HEADER */}
         <div style={{
-          background: theme.gradient,
-          padding: '40px 32px 32px',
+          background: event.type === 'external' && event.image_url ? 'transparent' : theme.gradient,
+          padding: event.type === 'external' && event.image_url ? '0' : '40px 32px 32px',
           color: theme.textMain,
           position: 'relative',
           overflow: 'hidden',
           flexShrink: 0,
           borderRadius: '24px 24px 0 0'
         }}>
-          <div style={{
-            position: 'absolute',
-            top: '-50%',
-            right: '-20%',
-            width: '300px',
-            height: '300px',
-            background: `radial-gradient(circle, ${theme.skyBlue}40 0%, transparent 70%)`,
-            filter: 'blur(60px)'
-          }} />
+
+          {/* Event Image for External Events */}
+          {event.type === 'external' && event.image_url && (
+            <div style={{
+              width: '100%',
+              height: '280px',
+              backgroundImage: `linear-gradient(to bottom, rgba(15, 23, 42, 0.3), rgba(15, 23, 42, 0.8)), url(${event.image_url})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              borderRadius: '24px 24px 0 0',
+              display: 'flex',
+              alignItems: 'flex-end',
+              padding: '32px'
+            }}>
+              <div style={{
+                position: 'relative',
+                zIndex: 2,
+                width: '100%',
+                maxWidth: 'calc(100% - 60px)', // Leave room for close button
+                paddingRight: '10px'
+              }}>
+                <div style={{
+                  display: 'inline-block',
+                  background: event.type === 'external' ? 'linear-gradient(135deg, #FFD700, #FFA500)' : theme.accentGradient,
+                  color: event.type === 'external' ? theme.deepNavy : 'white',
+                  padding: '6px 14px',
+                  borderRadius: '12px',
+                  fontSize: '12px',
+                  fontWeight: '800',
+                  marginBottom: '12px',
+                  textTransform: 'uppercase',
+                  boxShadow: event.type === 'external' ? '0 4px 12px rgba(255, 215, 0, 0.4)' : `0 4px 12px ${theme.skyBlue}40`
+                }}>
+                  {event.type === 'external' ? '🎫 TICKETMASTER' : getCategoryEmoji(event.category)}
+                </div>
+                <h2 style={{
+                  fontSize: '26px',
+                  fontWeight: '900',
+                  margin: '0 0 8px 0',
+                  lineHeight: '1.3',
+                  color: 'white',
+                  textShadow: '0 2px 8px rgba(0, 0, 0, 0.5)',
+                  wordWrap: 'break-word',
+                  overflowWrap: 'break-word',
+                  WebkitLineClamp: 3,
+                  display: '-webkit-box',
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden'
+                }}>
+                  {event.title}
+                </h2>
+                <div style={{
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: 'rgba(255, 255, 255, 0.9)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  textShadow: '0 1px 4px rgba(0, 0, 0, 0.5)',
+                  wordWrap: 'break-word',
+                  overflowWrap: 'break-word'
+                }}>
+                  <MapPin size={14} style={{ flexShrink: 0 }} />
+                  <span style={{ flex: 1 }}>{event.venue_name}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Gradient background blur effect for non-image events */}
+          {!(event.type === 'external' && event.image_url) && (
+            <>
+              <div style={{
+                position: 'absolute',
+                top: '-50%',
+                right: '-20%',
+                width: '300px',
+                height: '300px',
+                background: `radial-gradient(circle, ${theme.skyBlue}40 0%, transparent 70%)`,
+                filter: 'blur(60px)'
+              }} />
+            </>
+          )}
+
+          {/* Close Button */}
 
           <button
             onClick={onClose}
@@ -238,36 +314,39 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
             </button>
           )}
 
-          <div style={{ position: 'relative', zIndex: 2 }}>
-            <div style={{ fontSize: '56px', marginBottom: '16px', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.3))' }}>
-              {getCategoryEmoji(event.category)}
+          {/* Title and Category - only show for user events or external events without images */}
+          {!(event.type === 'external' && event.image_url) && (
+            <div style={{ position: 'relative', zIndex: 2 }}>
+              <div style={{ fontSize: '56px', marginBottom: '16px', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.3))' }}>
+                {getCategoryEmoji(event.category)}
+              </div>
+              <h2 style={{
+                margin: 0,
+                fontSize: '28px',
+                fontWeight: '900',
+                letterSpacing: '-0.5px',
+                lineHeight: '1.1',
+                wordBreak: 'break-word',
+                color: theme.textMain
+              }}>
+                {event.title}
+              </h2>
+              <div style={{
+                display: 'inline-flex',
+                marginTop: '12px',
+                backgroundColor: theme.slateLight,
+                padding: '6px 12px',
+                borderRadius: '20px',
+                fontSize: '13px',
+                fontWeight: '600',
+                textTransform: 'capitalize',
+                color: theme.textSecondary,
+                border: `1px solid ${theme.border}`
+              }}>
+                {event.category}
+              </div>
             </div>
-            <h2 style={{
-              margin: 0,
-              fontSize: '28px',
-              fontWeight: '900',
-              letterSpacing: '-0.5px',
-              lineHeight: '1.1',
-              wordBreak: 'break-word',
-              color: theme.textMain
-            }}>
-              {event.title}
-            </h2>
-            <div style={{
-              display: 'inline-flex',
-              marginTop: '12px',
-              backgroundColor: theme.slateLight,
-              padding: '6px 12px',
-              borderRadius: '20px',
-              fontSize: '13px',
-              fontWeight: '600',
-              textTransform: 'capitalize',
-              color: theme.textSecondary,
-              border: `1px solid ${theme.border}`
-            }}>
-              {event.category}
-            </div>
-          </div>
+          )}
         </div>
 
         {/* CONTENT BODY */}
