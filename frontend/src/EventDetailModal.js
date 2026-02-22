@@ -211,8 +211,8 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
             <X size={20} />
           </button>
 
-          {/* Delete Button */}
-          {isEventCreator() && (
+          {/* Delete Button - only for user-created events */}
+          {event.type !== 'external' && isEventCreator() && (
             <button
               onClick={() => setShowDeleteConfirm(true)}
               style={{
@@ -408,39 +408,113 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
               </div>
             </div>
 
-            {/* Attendees Row */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: '16px',
-                background: `${theme.teal}20`,
-                color: theme.teal,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-                border: `1px solid ${theme.teal}40`,
-                boxShadow: `0 0 20px ${theme.teal}20`
-              }}>
-                <Users size={24} />
-              </div>
+            {/* Attendees Row - only for user events */}
+            {event.type !== 'external' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '16px',
+                  background: `${theme.teal}20`,
+                  color: theme.teal,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  border: `1px solid ${theme.teal}40`,
+                  boxShadow: `0 0 20px ${theme.teal}20`
+                }}>
+                  <Users size={24} />
+                </div>
 
-              <div style={{ flex: 1 }}>
-                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: theme.textMain }}>
-                  Who's Going?
-                </h3>
-                <p style={{ margin: '2px 0 0 0', fontSize: '14px', color: theme.textSecondary }}>
-                  {event.interested_count || 1} {(event.interested_count || 1) === 1 ? 'person' : 'people'} interested
-                </p>
+                <div style={{ flex: 1 }}>
+                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: theme.textMain }}>
+                    Who's Going?
+                  </h3>
+                  <p style={{ margin: '2px 0 0 0', fontSize: '14px', color: theme.textSecondary }}>
+                    {event.interested_count || 1} {(event.interested_count || 1) === 1 ? 'person' : 'people'} interested
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
 
           </div>
 
           {/* ACTION BUTTON */}
           <div style={{ marginTop: 'auto' }}>
-            {isEventCreator() ? (
+            {event.type === 'external' ? (
+              // External events - show Get Tickets button
+              <div>
+                <a
+                  href={event.ticket_url || event.external_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ textDecoration: 'none' }}
+                >
+                  <button
+                    style={{
+                      width: '100%',
+                      padding: '20px',
+                      background: 'linear-gradient(135deg, #FFD700, #FFA500)',
+                      color: theme.deepNavy,
+                      border: 'none',
+                      borderRadius: '20px',
+                      fontSize: '18px',
+                      fontWeight: '800',
+                      cursor: 'pointer',
+                      boxShadow: '0 10px 25px -5px rgba(255, 215, 0, 0.6)',
+                      transition: 'transform 0.2s',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '12px'
+                    }}
+                    onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.98)'}
+                    onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                    onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                  >
+                    <span style={{ fontSize: '24px' }}>🎫</span>
+                    Get Tickets
+                  </button>
+                </a>
+
+                {/* Source badge */}
+                <div style={{
+                  textAlign: 'center',
+                  marginTop: '12px',
+                  fontSize: '12px',
+                  color: theme.textSecondary
+                }}>
+                  via {event.source === 'ticketmaster' ? 'Ticketmaster' : 'Eventbrite'}
+                </div>
+
+                {/* Create Huddll for this event - Future feature */}
+                <button
+                  onClick={() => alert('Coming soon! You\'ll be able to create your own Huddll group for this event and invite friends to join you.')}
+                  style={{
+                    width: '100%',
+                    padding: '16px',
+                    marginTop: '16px',
+                    backgroundColor: theme.slateLight,
+                    color: theme.skyBlue,
+                    border: `2px solid ${theme.skyBlue}`,
+                    borderRadius: '16px',
+                    fontSize: '15px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = `${theme.skyBlue}20`;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = theme.slateLight;
+                  }}
+                >
+                  👥 Create Huddll for This Event
+                </button>
+              </div>
+            ) : isEventCreator() ? (
               <div style={{
                 width: '100%',
                 padding: '16px',
@@ -518,8 +592,8 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
             )}
           </div>
 
-          {/* EVENT CHAT */}
-          {isUserInterested() && (
+          {/* EVENT CHAT - only for user events where user is interested */}
+          {event.type !== 'external' && isUserInterested() && (
             <div style={{ marginTop: '32px', paddingTop: '32px', borderTop: `1px solid ${theme.border}` }}>
               <h3 style={{
                 margin: '0 0 16px 0',

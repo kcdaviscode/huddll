@@ -93,6 +93,7 @@ class Event(models.Model):
 
     # Settings
     max_attendees = models.IntegerField(null=True, blank=True)
+    min_attendees = models.IntegerField(null=True, blank=True, default=3)
     check_in_radius = models.IntegerField(default=100, help_text="Check-in radius in meters")
 
     # Metadata
@@ -192,3 +193,109 @@ class EventChat(models.Model):
 
     def __str__(self):
         return f"{self.user.username} in {self.event.title}: {self.message[:50]}"
+
+
+# ============================================================================
+# EXTERNAL EVENTS (Ticketmaster, Eventbrite)
+# ============================================================================
+
+class ExternalEvent(models.Model):
+    """
+    Events imported from external sources (Ticketmaster, Eventbrite)
+    These seed the map with real events, users can create Huddlls around them
+    """
+
+    SOURCE_CHOICES = [
+        ('ticketmaster', 'Ticketmaster'),
+        ('eventbrite', 'Eventbrite'),
+    ]
+
+    # External identifiers
+    source = models.CharField(max_length=20, choices=SOURCE_CHOICES)
+    external_id = models.CharField(max_length=200, unique=True)  # Unique ID from source API
+
+    # Event details
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True, null=True)
+    category = models.CharField(max_length=50)  # Map to our categories: food, sports, nightlife, etc.
+
+    # Location
+    venue_name = models.CharField(max_length=200)
+    address = models.CharField(max_length=300, blank=True, null=True)
+    city = models.CharField(max_length=100)
+    state = models.CharField(max_length=50)
+    latitude = models.DecimalField(max_digits=9, decimal_places=6)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6)
+
+    # Timing
+    start_time = models.DateTimeField()
+    end_time = models.DateTimeField(blank=True, null=True)
+
+    # Media
+    image_url = models.URLField(blank=True, null=True)
+
+    # Links
+    external_url = models.URLField()  # Link to Ticketmaster/Eventbrite page
+    ticket_url = models.URLField(blank=True, null=True)  # Direct ticket purchase link
+
+    # Metadata
+    is_active = models.BooleanField(default=True)  # Hide events that have passed or been cancelled
+    imported_at = models.DateTimeField(auto_now_add=True)
+    last_updated = models.DateTimeField(auto_now=True)
+
+    # Stats (optional - for caching)
+    view_count = models.IntegerField(default=0)
+    huddll_count = models.IntegerField(default=0)  # How many Huddlls created around this event
+
+    class Meta:
+        ordering = ['start_time']
+        indexes = [
+            models.Index(fields=['source', 'external_id']),
+            models.Index(fields=['start_time', 'is_active']),
+            models.Index(fields=['latitude', 'longitude']),
+        ]
+
+    def __str__(self):
+        return f"{self.title} ({self.source})"
+
+    def to_dict(self):
+        """Serialize for API response"""
+        return {
+            'id': self.id,
+            'source': self.source,
+            'title': self.title,
+            'description': self.description,
+            'category': self.category,
+            'venue_name': self.venue_name,
+            'address': self.address,
+            'city': self.city,
+            'latitude': float(self.latitude),
+            'longitude': float(self.longitude),
+            'start_time': self.start_time.isoformat(),
+            'end_time': self.end_time.isoformat() if self.end_time else None,
+            'image_url': self.image_url,
+            'external_url': self.external_url,
+            'ticket_url': self.ticket_url,
+            'huddll_count': self.huddll_count,
+            'type': 'external'  # Flag to distinguish from user-created events
+        }
+
+
+class HuddllForExternalEvent(models.Model):
+    """
+    When users create a Huddll around an external event, we link them
+    This allows friend groups to plan attendance together
+    """
+    external_event = models.ForeignKey(ExternalEvent, on_delete=models.CASCADE, related_name='huddlls')
+    huddll_event = models.OneToOneField(Event, on_delete=models.CASCADE)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    # Group settings
+    is_private = models.BooleanField(default=False)  # Only visible to friends
+
+    class Meta:
+        unique_together = ['external_event', 'huddll_event']
+
+    def __str__(self):
+        return f"Huddll for {self.external_event.title}"

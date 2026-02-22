@@ -1,10 +1,11 @@
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly, AllowAny
 from django.db.models import Count
+from django.utils import timezone
 from users.models import User
-from .models import Event, EventInterest, CheckIn, EventChat
+from .models import Event, EventInterest, CheckIn, EventChat, ExternalEvent
 from .serializers import (
     EventListSerializer,
     EventDetailSerializer,
@@ -128,3 +129,33 @@ class EventViewSet(viewsets.ModelViewSet):
         } for checkin in checkins]
 
         return Response(attendees)
+
+
+# ============================================================================
+# EXTERNAL EVENTS (Ticketmaster, Eventbrite)
+# ============================================================================
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_external_events(request):
+    """
+    Get all active external events (Ticketmaster, Eventbrite)
+    """
+    # Get only future events
+    events = ExternalEvent.objects.filter(
+        is_active=True,
+        start_time__gte=timezone.now()
+    ).order_by('start_time')
+
+    # Optional filters
+    category = request.GET.get('category')
+    if category:
+        events = events.filter(category=category)
+
+    # Convert to dict
+    events_data = [event.to_dict() for event in events]
+
+    return Response({
+        'count': len(events_data),
+        'events': events_data
+    })

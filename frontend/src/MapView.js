@@ -26,7 +26,7 @@ const MapView = () => {
     timeRange: 'all',
     statuses: ['proposed', 'pending', 'active'],
     distance: 'all',
-    showMyEvents: false
+    eventType: 'all'
   });
 
   const mapStyles = {
@@ -79,6 +79,19 @@ const MapView = () => {
     }
   }, [searchParams, loading]);
 
+  // Prevent body scroll when InfoWindow or modal is open
+  useEffect(() => {
+    if (selectedEvent || detailModalEvent) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [selectedEvent, detailModalEvent]);
+
   const fetchEventById = async (eventId) => {
     try {
       const token = localStorage.getItem('token');
@@ -123,10 +136,25 @@ const MapView = () => {
 
   const fetchEvents = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/events/');
-      const data = await response.json();
-      console.log('Fetched events:', data);
-      setEvents(data);
+      // Fetch user-created events
+      const userEventsResponse = await fetch('http://localhost:8000/api/events/');
+      const userEvents = await userEventsResponse.json();
+
+      // Fetch external events (Ticketmaster, Eventbrite)
+      const externalEventsResponse = await fetch('http://localhost:8000/api/external/');
+      const externalData = await externalEventsResponse.json();
+      const externalEvents = externalData.events || [];
+
+      // Combine both types of events
+      const allEvents = [...userEvents, ...externalEvents];
+
+      console.log('Fetched events:', {
+        userEvents: userEvents.length,
+        externalEvents: externalEvents.length,
+        total: allEvents.length
+      });
+
+      setEvents(allEvents);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching events:', error);
@@ -137,12 +165,23 @@ const MapView = () => {
   const applyFilters = () => {
     let filtered = [...events];
 
-    if (filters.showMyEvents) {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      filtered = filtered.filter(event =>
-        event.interested_user_ids && event.interested_user_ids.includes(Number(user.id))
-      );
+    console.log('=== FILTER DEBUG ===');
+    console.log('Total events:', events.length);
+    console.log('Filter eventType:', filters.eventType);
+    console.log('Sample user event:', events.find(e => !e.type));
+    console.log('Sample external event:', events.find(e => e.type === 'external'));
+
+    // Filter by event type
+    if (filters.eventType === 'huddlls') {
+      // Only show user-created events (events without type field OR type !== 'external')
+      filtered = filtered.filter(event => !event.type || event.type !== 'external');
+      console.log('After huddlls filter:', filtered.length);
+    } else if (filters.eventType === 'public') {
+      // Only show external events (must have type === 'external')
+      filtered = filtered.filter(event => event.type === 'external');
+      console.log('After public filter:', filtered.length);
     }
+    // If 'all' or undefined, show everything (no filter needed)
 
     if (filters.categories.length > 0) {
       filtered = filtered.filter(event =>
@@ -161,9 +200,9 @@ const MapView = () => {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
     const endOfWeek = new Date(today);
-    endOfWeek.setDate(endOfWeek.getDate() + (7 - today.getDay()));
+    endOfWeek.setDate(endOfWeek.getDate() + 7); // Next 7 days
     const weekend = new Date(today);
-    weekend.setDate(weekend.getDate() + (6 - today.getDay()));
+    weekend.setDate(weekend.getDate() + (6 - today.getDay())); // Next Saturday
 
     filtered = filtered.filter(event => {
       const eventStart = new Date(event.start_time);
@@ -191,6 +230,12 @@ const MapView = () => {
     });
 
     filtered = filtered.filter(event => {
+      // External events don't have status - always show them
+      if (event.type === 'external') {
+        return true;
+      }
+
+      // User events - check status
       const interestedCount = event.interested_count || 1;
       const minAttendees = event.min_attendees || 3;
 
@@ -214,7 +259,34 @@ const MapView = () => {
       });
     }
 
+    console.log('Final filtered count:', filtered.length);
+    console.log('===================');
+
     setFilteredEvents(filtered);
+
+    // Update selected event if popup is open
+    setSelectedEvent(prev => {
+      if (!prev) return null;
+
+      const stillVisible = filtered.find(e =>
+        (e.type === 'external' ? `ext-${e.id}` : `user-${e.id}`) ===
+        (prev.type === 'external' ? `ext-${prev.id}` : `user-${prev.id}`)
+      );
+
+      if (stillVisible) {
+        // Update the eventsAtLocation list for the popup
+        const eventsAtLocation = filtered.filter(e =>
+          parseFloat(e.latitude) === parseFloat(stillVisible.latitude) &&
+          parseFloat(e.longitude) === parseFloat(stillVisible.longitude)
+        );
+        console.log('Updating popup - events at location:', eventsAtLocation.length);
+        return { ...stillVisible, eventsAtLocation };
+      } else {
+        // Event is no longer visible, close popup
+        console.log('Selected event filtered out, closing popup');
+        return null;
+      }
+    });
   };
 
   const getDistance = (lat1, lon1, lat2, lon2) => {
@@ -230,6 +302,12 @@ const MapView = () => {
   };
 
   const getPinColor = (event) => {
+    // External events (Ticketmaster/Eventbrite) - use gold/yellow
+    if (event.type === 'external') {
+      return '#FFD700'; // Gold for professional events
+    }
+
+    // User-created events - use existing logic
     const interestedCount = event.interested_count || 1;
     const minAttendees = event.min_attendees || 3;
 
@@ -376,9 +454,16 @@ const MapView = () => {
 
           {filteredEvents.map((event) => (
             <Marker
-              key={event.id}
+              key={event.type === 'external' ? `ext-${event.id}` : `user-${event.id}`}
               position={{ lat: parseFloat(event.latitude), lng: parseFloat(event.longitude) }}
-              onClick={() => setSelectedEvent(event)}
+              onClick={() => {
+                // Find all events at this exact location
+                const eventsAtLocation = filteredEvents.filter(e =>
+                  parseFloat(e.latitude) === parseFloat(event.latitude) &&
+                  parseFloat(e.longitude) === parseFloat(event.longitude)
+                );
+                setSelectedEvent({ ...event, eventsAtLocation });
+              }}
               icon={{
                 path: window.google.maps.SymbolPath.CIRCLE,
                 scale: 14,
@@ -397,71 +482,116 @@ const MapView = () => {
               options={{ pixelOffset: new window.google.maps.Size(0, -20) }}
             >
               <div style={{
-                minWidth: '240px',
-                padding: '12px',
+                minWidth: '280px',
+                maxWidth: '320px',
+                padding: '16px',
                 fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
                 backgroundColor: theme.slateLight,
                 borderRadius: '16px',
                 border: `1px solid ${theme.border}`
               }}>
 
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '12px' }}>
-                  <div style={{ fontSize: '32px', lineHeight: '1', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' }}>
-                    {getCategoryEmoji(selectedEvent.category)}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: theme.textMain, lineHeight: '1.2' }}>
-                      {selectedEvent.title}
+                {/* Venue Header */}
+                <div style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: `1px solid ${theme.border}` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <MapPin size={16} color={theme.skyBlue} />
+                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: theme.textMain }}>
+                      {selectedEvent.venue_name}
                     </h3>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '6px', color: theme.textSecondary }}>
-                      <MapPin size={12} strokeWidth={2.5} />
-                      <span style={{ fontSize: '12px', fontWeight: '600' }}>{selectedEvent.venue_name}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px', color: theme.textSecondary }}>
-                      <Clock size={12} strokeWidth={2.5} />
-                      <span style={{ fontSize: '12px', fontWeight: '500' }}>{formatEventTime(selectedEvent.start_time)}</span>
-                    </div>
                   </div>
+                  {selectedEvent.eventsAtLocation && selectedEvent.eventsAtLocation.length > 1 && (
+                    <div style={{ fontSize: '12px', color: theme.textSecondary, marginTop: '4px', marginLeft: '24px' }}>
+                      {selectedEvent.eventsAtLocation.length} events at this location
+                    </div>
+                  )}
                 </div>
 
+                {/* Event List */}
                 <div style={{
+                  maxHeight: '300px',
+                  overflowY: 'auto',
                   display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  backgroundColor: theme.deepNavy,
-                  padding: '10px 12px',
-                  borderRadius: '12px',
-                  marginTop: '12px',
-                  border: `1px solid ${theme.border}`
+                  flexDirection: 'column',
+                  gap: '8px'
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Users size={14} color={theme.skyBlue} />
-                    <span style={{ fontSize: '13px', fontWeight: '700', color: theme.textMain }}>
-                      {selectedEvent.interested_count || 1}
-                      {selectedEvent.max_attendees ? `/${selectedEvent.max_attendees}` : '+'}
-                      <span style={{ fontWeight: '500', color: theme.textSecondary, marginLeft: '4px' }}>going</span>
-                    </span>
-                  </div>
-
-                  <div
-                    onClick={() => {
-                      setDetailModalEvent(selectedEvent);
-                      setSelectedEvent(null);
-                    }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      color: theme.skyBlue,
-                      fontSize: '12px',
-                      fontWeight: '700',
-                      cursor: 'pointer',
-                      transition: 'transform 0.2s'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.transform = 'translateX(3px)'}
-                    onMouseLeave={(e) => e.currentTarget.style.transform = 'translateX(0)'}
-                  >
-                    Details <ArrowRight size={12} style={{ marginLeft: '3px' }}/>
-                  </div>
+                  {selectedEvent.eventsAtLocation && selectedEvent.eventsAtLocation.length > 0 ? (
+                    selectedEvent.eventsAtLocation
+                      .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))
+                      .map((event) => (
+                        <div
+                          key={event.type === 'external' ? `ext-${event.id}` : `user-${event.id}`}
+                          onClick={() => {
+                            setDetailModalEvent(event);
+                            setSelectedEvent(null);
+                          }}
+                          style={{
+                            padding: '12px',
+                            backgroundColor: theme.deepNavy,
+                            borderRadius: '12px',
+                            border: `1px solid ${event.type === 'external' ? '#FFD700' : theme.border}`,
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = theme.slate;
+                            e.currentTarget.style.transform = 'translateX(4px)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = theme.deepNavy;
+                            e.currentTarget.style.transform = 'translateX(0)';
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'start', gap: '10px' }}>
+                            <div style={{ fontSize: '24px', lineHeight: '1' }}>
+                              {getCategoryEmoji(event.category)}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{
+                                fontSize: '14px',
+                                fontWeight: '700',
+                                color: theme.textMain,
+                                marginBottom: '4px',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical'
+                              }}>
+                                {event.title}
+                              </div>
+                              <div style={{
+                                fontSize: '11px',
+                                color: theme.textSecondary,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}>
+                                <Clock size={10} />
+                                {formatEventTime(event.start_time)}
+                              </div>
+                              {event.type === 'external' && (
+                                <div style={{
+                                  display: 'inline-block',
+                                  background: '#FFD700',
+                                  color: theme.deepNavy,
+                                  fontSize: '9px',
+                                  fontWeight: '800',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  marginTop: '4px',
+                                  textTransform: 'uppercase'
+                                }}>
+                                  🎫 Ticketmaster
+                                </div>
+                              )}
+                            </div>
+                            <ArrowRight size={14} color={theme.skyBlue} style={{ flexShrink: 0, marginTop: '2px' }} />
+                          </div>
+                        </div>
+                      ))
+                  ) : (
+                    <div>No events found</div>
+                  )}
                 </div>
 
               </div>

@@ -14,3 +14,15 @@ cd /Users/kevindavis/PycharmProjects/huddll
 # If already in /Users/kevindavis/PycharmProjects/huddll:
 Terminal 1: ./start-django.sh
 Terminal 2: ./start-react.sh
+
+
+
+How to close:
+Terminal 1 (Daphne/Django):
+
+Press Ctrl+C
+Type redis-cli shutdown (to stop Redis)
+
+Terminal 2 (React):
+
+Press Ctrl+C

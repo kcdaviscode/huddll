@@ -1,9 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import theme from './theme';
 
 const FilterPanel = ({ filters, onFilterChange }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [pendingFilters, setPendingFilters] = useState(filters);
+
+  // Initialize pendingFilters with proper eventType default
+  const [pendingFilters, setPendingFilters] = useState({
+    ...filters,
+    eventType: filters.eventType || 'all'
+  });
+
+  // Update pendingFilters when filters prop changes
+  useEffect(() => {
+    setPendingFilters({
+      ...filters,
+      eventType: filters.eventType || 'all'
+    });
+  }, [filters]);
 
   const categories = [
     { id: 'food', label: 'Food & Drink', emoji: '🍔' },
@@ -113,6 +126,7 @@ const FilterPanel = ({ filters, onFilterChange }) => {
   };
 
   const applyFilters = () => {
+    console.log('Applying filters:', pendingFilters); // Debug log
     onFilterChange(pendingFilters);
     setIsExpanded(false);
   };
@@ -124,7 +138,7 @@ const FilterPanel = ({ filters, onFilterChange }) => {
       timeRange: 'all',
       statuses: ['proposed', 'pending', 'active'],
       distance: 'all',
-      showMyEvents: false
+      eventType: 'all'
     };
     setPendingFilters(clearedFilters);
     onFilterChange(clearedFilters);
@@ -135,7 +149,7 @@ const FilterPanel = ({ filters, onFilterChange }) => {
     (filters.subcategories?.length || 0) +
     (filters.timeRange !== 'all' ? 1 : 0) +
     (3 - filters.statuses.length) +
-    (filters.showMyEvents ? 1 : 0);
+    ((filters.eventType && filters.eventType !== 'all') ? 1 : 0);
 
   const getAvailableSubcategories = () => {
     if (pendingFilters.categories.length === 0) return [];
@@ -206,32 +220,96 @@ const FilterPanel = ({ filters, onFilterChange }) => {
           borderTop: `1px solid ${theme.border}`
         }}>
 
-          {/* My Events Toggle */}
-          <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'center' }}>
-            <button
-              onClick={() => setPendingFilters({ ...pendingFilters, showMyEvents: !pendingFilters.showMyEvents })}
-              style={{
-                width: '100%',
-                maxWidth: '400px',
-                padding: '14px 20px',
-                borderRadius: '16px',
-                border: `2px solid ${pendingFilters.showMyEvents ? theme.skyBlue : theme.border}`,
-                fontSize: '15px',
-                fontWeight: '800',
-                cursor: 'pointer',
-                background: pendingFilters.showMyEvents ? theme.accentGradient : theme.slateLight,
-                color: 'white',
-                transition: 'all 0.2s ease',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                boxShadow: pendingFilters.showMyEvents ? `0 4px 16px ${theme.skyBlue}40` : 'none'
-              }}
-            >
-              <span style={{ fontSize: '18px' }}>👤</span>
-              <span>My Events Only</span>
-            </button>
+          {/* Event Type Selector */}
+          <div style={{ marginBottom: '24px' }}>
+            <label style={{
+              display: 'block',
+              marginBottom: '12px',
+              fontSize: '13px',
+              fontWeight: '800',
+              color: theme.textMain,
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+              textAlign: 'center'
+            }}>
+              Event Type
+            </label>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
+              <button
+                onClick={() => setPendingFilters({ ...pendingFilters, eventType: 'all' })}
+                style={{
+                  flex: '1 1 auto',
+                  minWidth: '120px',
+                  padding: '12px 20px',
+                  borderRadius: '16px',
+                  border: `2px solid ${(pendingFilters.eventType || 'all') === 'all' ? theme.skyBlue : theme.border}`,
+                  fontSize: '14px',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  background: (pendingFilters.eventType || 'all') === 'all' ? theme.accentGradient : theme.slateLight,
+                  color: (pendingFilters.eventType || 'all') === 'all' ? 'white' : theme.textSecondary,
+                  transition: 'all 0.2s ease',
+                  boxShadow: (pendingFilters.eventType || 'all') === 'all' ? `0 4px 16px ${theme.skyBlue}40` : 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+              >
+                <span style={{ fontSize: '16px' }}>🌍</span>
+                <span>All Events</span>
+              </button>
+
+              <button
+                onClick={() => setPendingFilters({ ...pendingFilters, eventType: 'huddlls' })}
+                style={{
+                  flex: '1 1 auto',
+                  minWidth: '120px',
+                  padding: '12px 20px',
+                  borderRadius: '16px',
+                  border: `2px solid ${pendingFilters.eventType === 'huddlls' ? theme.skyBlue : theme.border}`,
+                  fontSize: '14px',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  background: pendingFilters.eventType === 'huddlls' ? theme.accentGradient : theme.slateLight,
+                  color: pendingFilters.eventType === 'huddlls' ? 'white' : theme.textSecondary,
+                  transition: 'all 0.2s ease',
+                  boxShadow: pendingFilters.eventType === 'huddlls' ? `0 4px 16px ${theme.skyBlue}40` : 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+              >
+                <span style={{ fontSize: '16px' }}>👥</span>
+                <span>My Huddlls</span>
+              </button>
+
+              <button
+                onClick={() => setPendingFilters({ ...pendingFilters, eventType: 'public' })}
+                style={{
+                  flex: '1 1 auto',
+                  minWidth: '120px',
+                  padding: '12px 20px',
+                  borderRadius: '16px',
+                  border: `2px solid ${pendingFilters.eventType === 'public' ? '#FFD700' : theme.border}`,
+                  fontSize: '14px',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  background: pendingFilters.eventType === 'public' ? 'linear-gradient(135deg, #FFD700, #FFA500)' : theme.slateLight,
+                  color: pendingFilters.eventType === 'public' ? theme.deepNavy : theme.textSecondary,
+                  transition: 'all 0.2s ease',
+                  boxShadow: pendingFilters.eventType === 'public' ? '0 4px 16px rgba(255, 215, 0, 0.4)' : 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+              >
+                <span style={{ fontSize: '16px' }}>🎫</span>
+                <span>Public Events</span>
+              </button>
+            </div>
           </div>
 
           {/* Time Filter */}
