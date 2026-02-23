@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',  # Add this too
     'events',
     'users',
+    'connections',
     'chat',
     'channels',
     'notifications',

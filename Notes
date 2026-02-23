@@ -26,3 +26,27 @@ Type redis-cli shutdown (to stop Redis)
 Terminal 2 (React):
 
 Press Ctrl+C
+
+
+END OF DAY
+
+# 1. Navigate to project directory
+cd ~/PycharmProjects/huddll
+
+# 2. Check what changed
+git status
+
+# 3. Add all changes
+git add .
+
+# 4. Commit with a descriptive message
+git commit -m "Profile page complete: Dashboard layout, timeline, friends, events tabs with real data"
+
+# 5. Push to GitHub
+git push origin main
+
+# 6. (Optional) Create database backup
+python manage.py dumpdata > backup_data_$(date +%Y%m%d).json
+git add backup_data_*.json
+git commit -m "Database backup $(date +%Y-%m-%d)"
+git push origin main

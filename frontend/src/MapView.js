@@ -16,6 +16,8 @@ const MapView = () => {
   const [detailModalEvent, setDetailModalEvent] = useState(null);
   const [events, setEvents] = useState([]);
   const [filteredEvents, setFilteredEvents] = useState([]);
+  const [visibleEvents, setVisibleEvents] = useState([]); // NEW: Only events in viewport
+  const [mapBounds, setMapBounds] = useState(null); // NEW: Current map bounds
   const [loading, setLoading] = useState(true);
   const [mapCenter, setMapCenter] = useState({ lat: 39.2904, lng: -76.6122 });
   const [circleCenter, setCircleCenter] = useState({ lat: 39.2904, lng: -76.6122 });
@@ -289,6 +291,71 @@ const MapView = () => {
     });
   };
 
+  // NEW: Filter events to only those visible in current map bounds
+  const updateVisibleEvents = useCallback(() => {
+    if (!mapBounds) {
+      // No bounds yet, show all filtered events
+      setVisibleEvents(filteredEvents);
+      return;
+    }
+
+    const visible = filteredEvents.filter(event => {
+      const lat = parseFloat(event.latitude);
+      const lng = parseFloat(event.longitude);
+
+      // Check if event is within map bounds
+      return (
+        lat >= mapBounds.south &&
+        lat <= mapBounds.north &&
+        lng >= mapBounds.west &&
+        lng <= mapBounds.east
+      );
+    });
+
+    console.log(`Showing ${visible.length} of ${filteredEvents.length} events in viewport`);
+    setVisibleEvents(visible);
+  }, [mapBounds, filteredEvents]);
+
+  // Update visible events when bounds or filtered events change
+  useEffect(() => {
+    updateVisibleEvents();
+  }, [updateVisibleEvents]);
+
+  // Handle map bounds change (when user pans or zooms)
+  const handleBoundsChanged = useCallback((map) => {
+    if (!map) return;
+
+    const bounds = map.getBounds();
+    if (!bounds) return;
+
+    const ne = bounds.getNorthEast();
+    const sw = bounds.getSouthWest();
+
+    // Debounce: only update if bounds changed significantly
+    const newBounds = {
+      north: ne.lat(),
+      south: sw.lat(),
+      east: ne.lng(),
+      west: sw.lng()
+    };
+
+    setMapBounds(newBounds);
+  }, []);
+
+  // Debounced version for onBoundsChanged (during drag)
+  const [boundsUpdateTimeout, setBoundsUpdateTimeout] = useState(null);
+  const handleBoundsChangedDebounced = useCallback((map) => {
+    if (boundsUpdateTimeout) {
+      clearTimeout(boundsUpdateTimeout);
+    }
+
+    const timeout = setTimeout(() => {
+      handleBoundsChanged(map);
+    }, 100); // 100ms debounce
+
+    setBoundsUpdateTimeout(timeout);
+  }, [boundsUpdateTimeout, handleBoundsChanged]);
+
   const getDistance = (lat1, lon1, lat2, lon2) => {
     const R = 3959;
     const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -432,8 +499,20 @@ const MapView = () => {
           options={mapOptions}
           onLoad={(map) => {
             window.mapInstance = map;
+            // Get initial bounds
+            handleBoundsChanged(map);
           }}
-          onIdle={handleMapIdle}
+          onIdle={(map) => {
+            handleMapIdle(map);
+            // Update bounds when map stops moving (final update)
+            handleBoundsChanged(map);
+          }}
+          onBoundsChanged={() => {
+            // Debounced updates during dragging for better performance
+            if (window.mapInstance) {
+              handleBoundsChangedDebounced(window.mapInstance);
+            }
+          }}
         >
           {false && filters.distance !== 'all' && (
             <Circle
@@ -452,7 +531,7 @@ const MapView = () => {
             />
           )}
 
-          {filteredEvents.map((event) => (
+          {visibleEvents.map((event) => (
             <Marker
               key={event.type === 'external' ? `ext-${event.id}` : `user-${event.id}`}
               position={{ lat: parseFloat(event.latitude), lng: parseFloat(event.longitude) }}
@@ -522,7 +601,7 @@ const MapView = () => {
                           key={event.type === 'external' ? `ext-${event.id}` : `user-${event.id}`}
                           onClick={() => {
                             setDetailModalEvent(event);
-                            setSelectedEvent(null);
+                            // DON'T close selectedEvent - keep venue popup open
                           }}
                           style={{
                             padding: '12px',
@@ -677,7 +756,11 @@ const MapView = () => {
       <EventDetailModal
         event={detailModalEvent ? events.find(e => e.id === detailModalEvent.id) || detailModalEvent : null}
         isOpen={!!detailModalEvent}
-        onClose={() => setDetailModalEvent(null)}
+        onClose={() => {
+          // Just close detail modal, keep venue popup open if it was open
+          setDetailModalEvent(null);
+          // selectedEvent stays open automatically!
+        }}
         onEventUpdated={fetchEvents}
       />
 
