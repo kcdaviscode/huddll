@@ -7,6 +7,9 @@ import {
 } from 'lucide-react';
 import Header from './Header';
 import EventDetailModal from './EventDetailModal';
+import EditProfileModal from './EditProfileModal';
+import FriendRequestsModal from './FriendRequestsModal';
+import HappeningSoonTab from './HappeningSoonTab';
 import theme from './theme';
 
 const ProfilePage = () => {
@@ -14,9 +17,11 @@ const ProfilePage = () => {
   const [friends, setFriends] = useState([]);
   const [timeline, setTimeline] = useState([]);
   const [myEvents, setMyEvents] = useState([]);
-  const [activeTab, setActiveTab] = useState('timeline');
+  const [activeTab, setActiveTab] = useState('happeningSoon');
   const [loading, setLoading] = useState(true);
   const [detailModalEvent, setDetailModalEvent] = useState(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [friendRequestsModalOpen, setFriendRequestsModalOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -50,6 +55,25 @@ const ProfilePage = () => {
     } catch (error) {
       console.error('Error fetching profile data:', error);
       setLoading(false);
+    }
+  };
+
+  const handleProfileSave = (updatedProfile) => {
+    setProfileData(updatedProfile);
+  };
+
+  const handleEventClick = async (eventId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:8000/api/events/${eventId}/`, {
+        headers: { 'Authorization': `Token ${token}` }
+      });
+      if (response.ok) {
+        const eventData = await response.json();
+        setDetailModalEvent(eventData);
+      }
+    } catch (error) {
+      console.error('Error fetching event:', error);
     }
   };
 
@@ -140,8 +164,10 @@ const ProfilePage = () => {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '700', color: theme.textMain }}>Friends ({friends.length})</h2>
-        <button style={{ background: theme.accentGradient, color: 'white', border: 'none', borderRadius: '12px', padding: '10px 20px', fontSize: '14px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: `0 4px 16px ${theme.skyBlue}40` }}>
-          <UserPlus size={16} /> Add Friend
+        <button
+          onClick={() => setFriendRequestsModalOpen(true)}
+          style={{ background: theme.accentGradient, color: 'white', border: 'none', borderRadius: '12px', padding: '10px 20px', fontSize: '14px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: `0 4px 16px ${theme.skyBlue}40` }}>
+          <UserPlus size={16} /> Friend Requests
         </button>
       </div>
 
@@ -386,7 +412,9 @@ const ProfilePage = () => {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '700', color: theme.textMain }}>Profile</h2>
-        <button style={{ background: theme.accentGradient, color: 'white', border: 'none', borderRadius: '12px', padding: '10px 20px', fontSize: '14px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: `0 4px 16px ${theme.skyBlue}40` }}>
+        <button
+          onClick={() => setEditModalOpen(true)}
+          style={{ background: theme.accentGradient, color: 'white', border: 'none', borderRadius: '12px', padding: '10px 20px', fontSize: '14px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: `0 4px 16px ${theme.skyBlue}40` }}>
           <Edit3 size={16} /> Edit Profile
         </button>
       </div>
@@ -473,17 +501,60 @@ const ProfilePage = () => {
 
         {/* Profile Summary */}
         <div style={{ textAlign: 'center', marginBottom: '24px', paddingBottom: '24px', borderBottom: `1px solid ${theme.border}` }}>
-          <div style={{ width: '80px', height: '80px', borderRadius: '16px', background: theme.accentGradient, margin: '0 auto 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', fontWeight: '700', color: 'white', boxShadow: `0 8px 24px ${theme.skyBlue}40` }}>
-            {profileData?.first_name ? profileData.first_name.charAt(0).toUpperCase() : profileData?.username?.charAt(0).toUpperCase()}
-          </div>
+          {profileData?.profile_photo_url ? (
+            <div style={{
+              width: '80px',
+              height: '80px',
+              borderRadius: '16px',
+              backgroundImage: `url(${profileData.profile_photo_url})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              margin: '0 auto 12px',
+              boxShadow: `0 8px 24px ${theme.skyBlue}40`,
+              border: `3px solid ${theme.border}`
+            }} />
+          ) : (
+            <div style={{ width: '80px', height: '80px', borderRadius: '16px', background: theme.accentGradient, margin: '0 auto 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', fontWeight: '700', color: 'white', boxShadow: `0 8px 24px ${theme.skyBlue}40` }}>
+              {profileData?.first_name ? profileData.first_name.charAt(0).toUpperCase() : profileData?.username?.charAt(0).toUpperCase()}
+            </div>
+          )}
           <h3 style={{ margin: '0 0 4px', fontSize: '18px', fontWeight: '700', color: theme.textMain }}>
             {profileData?.first_name && profileData?.last_name
               ? `${profileData.first_name} ${profileData.last_name}`
               : profileData?.username}
           </h3>
-          <p style={{ margin: 0, fontSize: '13px', color: theme.textSecondary, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+          <p style={{ margin: '0 0 12px', fontSize: '13px', color: theme.textSecondary, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
             <MapPin size={12} /> {profileData?.city || 'Baltimore, MD'}
           </p>
+          <button
+            onClick={() => setEditModalOpen(true)}
+            style={{
+              background: theme.slate,
+              border: `1px solid ${theme.border}`,
+              borderRadius: '10px',
+              padding: '8px 16px',
+              color: theme.skyBlue,
+              fontSize: '13px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              margin: '0 auto',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = theme.deepNavy;
+              e.currentTarget.style.borderColor = theme.skyBlue;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = theme.slate;
+              e.currentTarget.style.borderColor = theme.border;
+            }}
+          >
+            <Edit3 size={14} />
+            Edit Profile
+          </button>
         </div>
 
         {/* Stats */}
@@ -505,9 +576,10 @@ const ProfilePage = () => {
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: '11px', color: theme.textLight, textTransform: 'uppercase', marginBottom: '12px', fontWeight: '600', letterSpacing: '0.5px' }}>Navigation</div>
           {[
-            { id: 'timeline', icon: <Sparkles size={16} />, label: 'Timeline' },
+            { id: 'happeningSoon', icon: <Sparkles size={16} />, label: 'Happening Soon' },
+            { id: 'events', icon: <Calendar size={16} />, label: 'My Events' },
             { id: 'friends', icon: <Users size={16} />, label: 'Friends' },
-            { id: 'events', icon: <Calendar size={16} />, label: 'Events' },
+            { id: 'timeline', icon: <Clock size={16} />, label: 'Activity' },
             { id: 'profile', icon: <User size={16} />, label: 'Profile' }
           ].map((item) => (
             <button
@@ -541,6 +613,7 @@ const ProfilePage = () => {
 
       {/* Main Content */}
       <div style={{ flex: 1, padding: '40px 60px', overflowY: 'auto' }}>
+        {activeTab === 'happeningSoon' && <HappeningSoonTab onEventClick={handleEventClick} />}
         {activeTab === 'timeline' && <TimelineTab />}
         {activeTab === 'friends' && <FriendsTab />}
         {activeTab === 'events' && <EventsTab />}
@@ -555,6 +628,23 @@ const ProfilePage = () => {
       isOpen={!!detailModalEvent}
       onClose={() => setDetailModalEvent(null)}
       onEventUpdated={fetchAllData}
+    />
+
+    {/* Edit Profile Modal */}
+    <EditProfileModal
+      isOpen={editModalOpen}
+      onClose={() => setEditModalOpen(false)}
+      profileData={profileData}
+      onSave={handleProfileSave}
+    />
+
+    {/* Friend Requests Modal */}
+    <FriendRequestsModal
+      isOpen={friendRequestsModalOpen}
+      onClose={() => {
+        setFriendRequestsModalOpen(false);
+        fetchAllData(); // Refresh friends list after accepting/declining
+      }}
     />
     </div>
   );

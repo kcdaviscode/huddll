@@ -7,6 +7,7 @@ class Connection(models.Model):
 
     user1 = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='connections_initiated')
     user2 = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='connections_received')
+    initiated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='friend_requests_sent', null=True)  # ADD THIS LINE
 
     STATUS_CHOICES = [
         ('pending', 'Pending'),

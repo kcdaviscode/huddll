@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MapPin, Clock, Users, X, Navigation, Trash2 } from 'lucide-react';
 import EventChat from './EventChat';
+import AddFriendButton from './AddFriendButton';
 import theme from './theme';
 
 const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
@@ -15,6 +16,111 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
   }, [event?.id]);
 
   if (!isOpen || !event) return null;
+
+  // Attendee Card Component
+  const AttendeeCard = ({ userId }) => {
+    const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const currentUserId = JSON.parse(localStorage.getItem('user') || '{}').id;
+
+    useEffect(() => {
+      fetchUser();
+    }, [userId]);
+
+    const fetchUser = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`http://localhost:8000/api/users/${userId}/`, {
+          headers: { 'Authorization': `Token ${token}` }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setUser(data);
+        }
+      } catch (error) {
+        console.error('Error fetching user:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (loading || !user) return null;
+    if (userId === currentUserId) return null; // Don't show yourself
+
+    const displayName = user.first_name && user.last_name
+      ? `${user.first_name} ${user.last_name}`
+      : user.username;
+    const avatar = user.first_name
+      ? user.first_name[0].toUpperCase()
+      : user.username[0].toUpperCase();
+
+    return (
+      <div style={{
+        background: theme.slateLight,
+        borderRadius: '12px',
+        padding: '12px',
+        border: `1px solid ${theme.border}`,
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px'
+      }}>
+        {user.profile_photo_url ? (
+          <div style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: '10px',
+            backgroundImage: `url(${user.profile_photo_url})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            flexShrink: 0
+          }} />
+        ) : (
+          <div style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: '10px',
+            background: theme.accentGradient,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '16px',
+            fontWeight: '700',
+            color: 'white',
+            flexShrink: 0
+          }}>
+            {avatar}
+          </div>
+        )}
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{
+            fontSize: '14px',
+            fontWeight: '600',
+            color: theme.textMain,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
+          }}>
+            {displayName}
+          </div>
+          {user.city && (
+            <div style={{
+              fontSize: '12px',
+              color: theme.textSecondary,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}>
+              {user.city}
+            </div>
+          )}
+        </div>
+
+        <AddFriendButton userId={userId} compact={true} />
+      </div>
+    );
+  };
 
   const getCategoryEmoji = (category) => {
     const emojiMap = {
@@ -170,99 +276,23 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
 
         {/* HERO HEADER */}
         <div style={{
-          background: event.type === 'external' && event.image_url ? 'transparent' : theme.gradient,
-          padding: event.type === 'external' && event.image_url ? '0' : '40px 32px 32px',
+          background: theme.gradient,
+          padding: '40px 32px 32px',
           color: theme.textMain,
           position: 'relative',
           overflow: 'hidden',
           flexShrink: 0,
           borderRadius: '24px 24px 0 0'
         }}>
-
-          {/* Event Image for External Events */}
-          {event.type === 'external' && event.image_url && (
-            <div style={{
-              width: '100%',
-              height: '280px',
-              backgroundImage: `linear-gradient(to bottom, rgba(15, 23, 42, 0.3), rgba(15, 23, 42, 0.8)), url(${event.image_url})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              borderRadius: '24px 24px 0 0',
-              display: 'flex',
-              alignItems: 'flex-end',
-              padding: '32px'
-            }}>
-              <div style={{
-                position: 'relative',
-                zIndex: 2,
-                width: '100%',
-                maxWidth: 'calc(100% - 60px)', // Leave room for close button
-                paddingRight: '10px'
-              }}>
-                <div style={{
-                  display: 'inline-block',
-                  background: event.type === 'external' ? 'linear-gradient(135deg, #FFD700, #FFA500)' : theme.accentGradient,
-                  color: event.type === 'external' ? theme.deepNavy : 'white',
-                  padding: '6px 14px',
-                  borderRadius: '12px',
-                  fontSize: '12px',
-                  fontWeight: '800',
-                  marginBottom: '12px',
-                  textTransform: 'uppercase',
-                  boxShadow: event.type === 'external' ? '0 4px 12px rgba(255, 215, 0, 0.4)' : `0 4px 12px ${theme.skyBlue}40`
-                }}>
-                  {event.type === 'external' ? '🎫 TICKETMASTER' : getCategoryEmoji(event.category)}
-                </div>
-                <h2 style={{
-                  fontSize: '26px',
-                  fontWeight: '900',
-                  margin: '0 0 8px 0',
-                  lineHeight: '1.3',
-                  color: 'white',
-                  textShadow: '0 2px 8px rgba(0, 0, 0, 0.5)',
-                  wordWrap: 'break-word',
-                  overflowWrap: 'break-word',
-                  WebkitLineClamp: 3,
-                  display: '-webkit-box',
-                  WebkitBoxOrient: 'vertical',
-                  overflow: 'hidden'
-                }}>
-                  {event.title}
-                </h2>
-                <div style={{
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  color: 'rgba(255, 255, 255, 0.9)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  textShadow: '0 1px 4px rgba(0, 0, 0, 0.5)',
-                  wordWrap: 'break-word',
-                  overflowWrap: 'break-word'
-                }}>
-                  <MapPin size={14} style={{ flexShrink: 0 }} />
-                  <span style={{ flex: 1 }}>{event.venue_name}</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Gradient background blur effect for non-image events */}
-          {!(event.type === 'external' && event.image_url) && (
-            <>
-              <div style={{
-                position: 'absolute',
-                top: '-50%',
-                right: '-20%',
-                width: '300px',
-                height: '300px',
-                background: `radial-gradient(circle, ${theme.skyBlue}40 0%, transparent 70%)`,
-                filter: 'blur(60px)'
-              }} />
-            </>
-          )}
-
-          {/* Close Button */}
+          <div style={{
+            position: 'absolute',
+            top: '-50%',
+            right: '-20%',
+            width: '300px',
+            height: '300px',
+            background: `radial-gradient(circle, ${theme.skyBlue}40 0%, transparent 70%)`,
+            filter: 'blur(60px)'
+          }} />
 
           <button
             onClick={onClose}
@@ -287,8 +317,8 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
             <X size={20} />
           </button>
 
-          {/* Delete Button - only for user-created events */}
-          {event.type !== 'external' && isEventCreator() && (
+          {/* Delete Button */}
+          {isEventCreator() && (
             <button
               onClick={() => setShowDeleteConfirm(true)}
               style={{
@@ -314,39 +344,36 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
             </button>
           )}
 
-          {/* Title and Category - only show for user events or external events without images */}
-          {!(event.type === 'external' && event.image_url) && (
-            <div style={{ position: 'relative', zIndex: 2 }}>
-              <div style={{ fontSize: '56px', marginBottom: '16px', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.3))' }}>
-                {getCategoryEmoji(event.category)}
-              </div>
-              <h2 style={{
-                margin: 0,
-                fontSize: '28px',
-                fontWeight: '900',
-                letterSpacing: '-0.5px',
-                lineHeight: '1.1',
-                wordBreak: 'break-word',
-                color: theme.textMain
-              }}>
-                {event.title}
-              </h2>
-              <div style={{
-                display: 'inline-flex',
-                marginTop: '12px',
-                backgroundColor: theme.slateLight,
-                padding: '6px 12px',
-                borderRadius: '20px',
-                fontSize: '13px',
-                fontWeight: '600',
-                textTransform: 'capitalize',
-                color: theme.textSecondary,
-                border: `1px solid ${theme.border}`
-              }}>
-                {event.category}
-              </div>
+          <div style={{ position: 'relative', zIndex: 2 }}>
+            <div style={{ fontSize: '56px', marginBottom: '16px', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.3))' }}>
+              {getCategoryEmoji(event.category)}
             </div>
-          )}
+            <h2 style={{
+              margin: 0,
+              fontSize: '28px',
+              fontWeight: '900',
+              letterSpacing: '-0.5px',
+              lineHeight: '1.1',
+              wordBreak: 'break-word',
+              color: theme.textMain
+            }}>
+              {event.title}
+            </h2>
+            <div style={{
+              display: 'inline-flex',
+              marginTop: '12px',
+              backgroundColor: theme.slateLight,
+              padding: '6px 12px',
+              borderRadius: '20px',
+              fontSize: '13px',
+              fontWeight: '600',
+              textTransform: 'capitalize',
+              color: theme.textSecondary,
+              border: `1px solid ${theme.border}`
+            }}>
+              {event.category}
+            </div>
+          </div>
         </div>
 
         {/* CONTENT BODY */}
@@ -487,113 +514,76 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
               </div>
             </div>
 
-            {/* Attendees Row - only for user events */}
-            {event.type !== 'external' && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div style={{
-                  width: '48px',
-                  height: '48px',
-                  borderRadius: '16px',
-                  background: `${theme.teal}20`,
-                  color: theme.teal,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                  border: `1px solid ${theme.teal}40`,
-                  boxShadow: `0 0 20px ${theme.teal}20`
-                }}>
-                  <Users size={24} />
-                </div>
-
-                <div style={{ flex: 1 }}>
-                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: theme.textMain }}>
-                    Who's Going?
-                  </h3>
-                  <p style={{ margin: '2px 0 0 0', fontSize: '14px', color: theme.textSecondary }}>
-                    {event.interested_count || 1} {(event.interested_count || 1) === 1 ? 'person' : 'people'} interested
-                  </p>
-                </div>
+            {/* Attendees Row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '16px',
+                background: `${theme.teal}20`,
+                color: theme.teal,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                border: `1px solid ${theme.teal}40`,
+                boxShadow: `0 0 20px ${theme.teal}20`
+              }}>
+                <Users size={24} />
               </div>
-            )}
+
+              <div style={{ flex: 1 }}>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: theme.textMain }}>
+                  Who's Going?
+                </h3>
+                <p style={{ margin: '2px 0 0 0', fontSize: '14px', color: theme.textSecondary }}>
+                  {event.interested_count || 1} {(event.interested_count || 1) === 1 ? 'person' : 'people'} interested
+                </p>
+              </div>
+            </div>
 
           </div>
 
+          {/* ATTENDEES SECTION - only for user events with attendees */}
+          {event.type !== 'external' && event.interested_user_ids && event.interested_user_ids.length > 0 && (
+            <div style={{
+              marginBottom: '32px',
+              padding: '24px',
+              background: theme.slateLight,
+              borderRadius: '20px',
+              border: `1px solid ${theme.border}`
+            }}>
+              <h3 style={{
+                margin: '0 0 16px',
+                fontSize: '18px',
+                fontWeight: '800',
+                color: theme.textMain,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <Users size={20} color={theme.skyBlue} />
+                Who's Going ({event.interested_user_ids.length})
+              </h3>
+
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr',
+                gap: '10px',
+                maxHeight: '280px',
+                overflowY: 'auto',
+                paddingRight: '4px'
+              }}>
+                {event.interested_user_ids.map(userId => (
+                  <AttendeeCard key={userId} userId={userId} />
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* ACTION BUTTON */}
           <div style={{ marginTop: 'auto' }}>
-            {event.type === 'external' ? (
-              // External events - show Get Tickets button
-              <div>
-                <a
-                  href={event.ticket_url || event.external_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ textDecoration: 'none' }}
-                >
-                  <button
-                    style={{
-                      width: '100%',
-                      padding: '20px',
-                      background: 'linear-gradient(135deg, #FFD700, #FFA500)',
-                      color: theme.deepNavy,
-                      border: 'none',
-                      borderRadius: '20px',
-                      fontSize: '18px',
-                      fontWeight: '800',
-                      cursor: 'pointer',
-                      boxShadow: '0 10px 25px -5px rgba(255, 215, 0, 0.6)',
-                      transition: 'transform 0.2s',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '12px'
-                    }}
-                    onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.98)'}
-                    onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                    onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                  >
-                    <span style={{ fontSize: '24px' }}>🎫</span>
-                    Get Tickets
-                  </button>
-                </a>
-
-                {/* Source badge */}
-                <div style={{
-                  textAlign: 'center',
-                  marginTop: '12px',
-                  fontSize: '12px',
-                  color: theme.textSecondary
-                }}>
-                  via {event.source === 'ticketmaster' ? 'Ticketmaster' : 'Eventbrite'}
-                </div>
-
-                {/* Create Huddll for this event - Future feature */}
-                <button
-                  onClick={() => alert('Coming soon! You\'ll be able to create your own Huddll group for this event and invite friends to join you.')}
-                  style={{
-                    width: '100%',
-                    padding: '16px',
-                    marginTop: '16px',
-                    backgroundColor: theme.slateLight,
-                    color: theme.skyBlue,
-                    border: `2px solid ${theme.skyBlue}`,
-                    borderRadius: '16px',
-                    fontSize: '15px',
-                    fontWeight: '700',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = `${theme.skyBlue}20`;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = theme.slateLight;
-                  }}
-                >
-                  👥 Create Huddll for This Event
-                </button>
-              </div>
-            ) : isEventCreator() ? (
+            {isEventCreator() ? (
               <div style={{
                 width: '100%',
                 padding: '16px',
@@ -671,8 +661,8 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
             )}
           </div>
 
-          {/* EVENT CHAT - only for user events where user is interested */}
-          {event.type !== 'external' && isUserInterested() && (
+          {/* EVENT CHAT */}
+          {isUserInterested() && (
             <div style={{ marginTop: '32px', paddingTop: '32px', borderTop: `1px solid ${theme.border}` }}>
               <h3 style={{
                 margin: '0 0 16px 0',

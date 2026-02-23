@@ -97,6 +97,11 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
 
         # Update interests if provided
         if interests_data is not None:
+            # Parse JSON if it's a string
+            if isinstance(interests_data, str):
+                import json
+                interests_data = json.loads(interests_data)
+
             # Clear existing interests
             UserInterest.objects.filter(user=instance).delete()
 

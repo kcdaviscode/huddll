@@ -9,8 +9,8 @@ urlpatterns = [
     path('api/', include('events.urls')),
     path('api/users/', include('users.urls')),
     path('api/notifications/', include('notifications.urls')),
-    path('api/users/', include('users.urls')),
-    path('api/chat/', include('chat.urls')),# Add this line
+    path('api/chat/', include('chat.urls')),
+    path('api/connections/', include('connections.urls')),# Add this line
 ]
 
 if settings.DEBUG:
