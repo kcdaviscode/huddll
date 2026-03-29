@@ -13,6 +13,68 @@ from .serializers import (
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+def register(request):
+    """Register a new user"""
+    username = request.data.get('username')
+    password = request.data.get('password')
+    email = request.data.get('email')
+    first_name = request.data.get('first_name', '')
+    last_name = request.data.get('last_name', '')
+
+    # Validation
+    if not username or not password:
+        return Response(
+            {'error': 'Username and password are required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # Check if username exists
+    if User.objects.filter(username=username).exists():
+        return Response(
+            {'error': 'Username already exists'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # Check if email exists (if provided)
+    if email and User.objects.filter(email=email).exists():
+        return Response(
+            {'error': 'Email already exists'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # Create user
+    try:
+        user = User.objects.create_user(
+            username=username,
+            password=password,
+            email=email,
+            first_name=first_name,
+            last_name=last_name
+        )
+
+        # Create auth token
+        token, created = Token.objects.get_or_create(user=user)
+
+        return Response({
+            'token': token.key,
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+            },
+            'message': 'User created successfully'
+        }, status=status.HTTP_201_CREATED)
+
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
 def login(request):
     """Login endpoint"""
     username = request.data.get('username')
@@ -179,6 +241,7 @@ def get_my_events(request):
 
     return Response(events_data)
 
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_user_by_id(request, user_id):
@@ -190,8 +253,6 @@ def get_user_by_id(request, user_id):
     except User.DoesNotExist:
         return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
 
-
-# ADD THIS TO users/views.py
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])

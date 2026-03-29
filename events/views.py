@@ -2,9 +2,11 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly, AllowAny
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.utils import timezone
 from users.models import User
+from notifications.models import Notification
+from connections.models import Connection
 from .models import Event, EventInterest, CheckIn, EventChat, ExternalEvent
 from .serializers import (
     EventListSerializer,
@@ -159,3 +161,186 @@ def get_external_events(request):
         'count': len(events_data),
         'events': events_data
     })
+
+
+# ============================================================================
+# HUDDLL CREATION AROUND EXTERNAL EVENTS
+# ============================================================================
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def mark_external_event_interested(request, event_id):
+    """
+    Mark user as interested in an external (Ticketmaster) event.
+    This just tracks that the user is going - doesn't affect the event itself.
+
+    Uses the Event model with type='external' (NOT ExternalEvent model)
+    """
+    try:
+        # Look for event in Event table with type='external'
+        event = Event.objects.get(id=event_id, type='external')
+    except Event.DoesNotExist:
+        return Response({'error': 'External event not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    # Create or get EventInterest
+    interest, created = EventInterest.objects.get_or_create(
+        user=request.user,
+        event=event
+    )
+
+    if created:
+        return Response({
+            'message': 'Marked as interested',
+            'is_interested': True
+        }, status=status.HTTP_201_CREATED)
+    else:
+        return Response({
+            'message': 'Already marked as interested',
+            'is_interested': True
+        }, status=status.HTTP_200_OK)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def unmark_external_event_interested(request, event_id):
+    """Remove user's interest in an external event"""
+    try:
+        event = Event.objects.get(id=event_id, type='external')
+        EventInterest.objects.filter(user=request.user, event=event).delete()
+        return Response({
+            'message': 'Interest removed',
+            'is_interested': False
+        }, status=status.HTTP_200_OK)
+    except Event.DoesNotExist:
+        return Response({'error': 'Event not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def check_external_event_interest(request, event_id):
+    """Check if user is interested in an external event"""
+    try:
+        event = Event.objects.get(id=event_id, type='external')
+        is_interested = EventInterest.objects.filter(
+            user=request.user,
+            event=event
+        ).exists()
+
+        return Response({
+            'is_interested': is_interested
+        }, status=status.HTTP_200_OK)
+    except Event.DoesNotExist:
+        return Response({'error': 'Event not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_huddll(request):
+    """
+    Create a Huddll (private group event) tied to a public/external event.
+
+    Request body:
+    {
+        "parent_event_id": 123,
+        "title": "My Group at Concert",
+        "invited_friends": [2, 3, 4]
+    }
+    """
+    parent_event_id = request.data.get('parent_event_id')
+    title = request.data.get('title')
+    invited_friends = request.data.get('invited_friends', [])
+
+    if not parent_event_id or not title:
+        return Response({
+            'error': 'parent_event_id and title are required'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        parent_event = Event.objects.get(id=parent_event_id)
+    except Event.DoesNotExist:
+        return Response({'error': 'Parent event not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    # Create the Huddll as a new event linked to the parent
+    huddll = Event.objects.create(
+        title=title,
+        description=f"Private group for {parent_event.title}",
+        venue_name=parent_event.venue_name,
+        address=parent_event.address,
+        latitude=parent_event.latitude,
+        longitude=parent_event.longitude,
+        city=parent_event.city,
+        start_time=parent_event.start_time,
+        end_time=parent_event.end_time,
+        category=parent_event.category,
+        subcategory=parent_event.subcategory if hasattr(parent_event, 'subcategory') else None,
+        emoji=parent_event.emoji if parent_event.emoji else '🎉',
+        created_by=request.user,
+        type='huddll',  # Mark as Huddll type
+        parent_event=parent_event,  # Link to parent
+        status='published'
+    )
+
+    # Creator is automatically interested
+    EventInterest.objects.create(user=request.user, event=huddll)
+
+    # Invite selected friends
+    invited_count = 0
+    for friend_id in invited_friends:
+        try:
+            # Verify they're actually friends
+            is_friend = Connection.objects.filter(
+                Q(user1=request.user, user2_id=friend_id, status='accepted') |
+                Q(user2=request.user, user1_id=friend_id, status='accepted')
+            ).exists()
+
+            if is_friend:
+                # Create notification for invited friend
+                Notification.objects.create(
+                    user_id=friend_id,
+                    message=f"{request.user.username} invited you to join their Huddll: {title}"
+                )
+                invited_count += 1
+        except Exception as e:
+            print(f"Error inviting friend {friend_id}: {e}")
+            continue
+
+    # Return the created Huddll
+    return Response({
+        'id': huddll.id,
+        'title': huddll.title,
+        'parent_event_id': parent_event.id,
+        'parent_event_title': parent_event.title,
+        'invited_count': invited_count,
+        'message': 'Huddll created successfully!'
+    }, status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_huddlls_for_event(request, event_id):
+    """Get all Huddlls (private groups) for a given external event that the user is part of"""
+    try:
+        parent_event = Event.objects.get(id=event_id)
+
+        # Find Huddlls the user is interested in that are linked to this parent event
+        huddlls = Event.objects.filter(
+            parent_event=parent_event,
+            type='huddll',
+            interests__user=request.user
+        ).distinct()
+
+        huddlls_data = []
+        for huddll in huddlls:
+            interested_users = EventInterest.objects.filter(event=huddll).select_related('user')
+            huddlls_data.append({
+                'id': huddll.id,
+                'title': huddll.title,
+                'created_by': huddll.created_by.id,
+                'created_by_username': huddll.created_by.username,
+                'interested_count': interested_users.count(),
+                'interested_user_ids': [i.user.id for i in interested_users]
+            })
+
+        return Response(huddlls_data, status=status.HTTP_200_OK)
+    except Event.DoesNotExist:
+        return Response({'error': 'Event not found'}, status=status.HTTP_404_NOT_FOUND)

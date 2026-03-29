@@ -74,6 +74,13 @@ class Event(models.Model):
         ('completed', 'Completed'),
     ]
 
+    # NEW: Type choices for Huddll feature
+    TYPE_CHOICES = [
+        ('user', 'User Created'),
+        ('external', 'External/Ticketmaster'),
+        ('huddll', 'Huddll (Private Group)'),
+    ]
+
     # Basic Info
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
@@ -102,6 +109,20 @@ class Event(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='published')
     image = models.ImageField(upload_to='event_images/', null=True, blank=True)
+
+    # NEW FIELDS: For Huddll feature
+    type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='user')
+    parent_event = models.ForeignKey(
+        'self',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='huddlls',
+        help_text='The external/public event this Huddll is based on'
+    )
+
+    # NEW FIELD: For external events (emoji display)
+    emoji = models.CharField(max_length=10, blank=True, null=True)
 
     class Meta:
         ordering = ['-start_time']

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { GoogleMap, Marker, InfoWindow, Circle } from '@react-google-maps/api';
 import { MapPin, Clock, Users, ArrowRight, Plus, Navigation } from 'lucide-react';
@@ -343,18 +343,15 @@ const MapView = () => {
   }, []);
 
   // Debounced version for onBoundsChanged (during drag)
-  const [boundsUpdateTimeout, setBoundsUpdateTimeout] = useState(null);
+  const boundsUpdateTimeout = useRef(null);
   const handleBoundsChangedDebounced = useCallback((map) => {
-    if (boundsUpdateTimeout) {
-      clearTimeout(boundsUpdateTimeout);
+    if (boundsUpdateTimeout.current) {
+      clearTimeout(boundsUpdateTimeout.current);
     }
-
-    const timeout = setTimeout(() => {
+    boundsUpdateTimeout.current = setTimeout(() => {
       handleBoundsChanged(map);
     }, 100); // 100ms debounce
-
-    setBoundsUpdateTimeout(timeout);
-  }, [boundsUpdateTimeout, handleBoundsChanged]);
+  }, [handleBoundsChanged]);
 
   const getDistance = (lat1, lon1, lat2, lon2) => {
     const R = 3959;
