@@ -50,3 +50,20 @@ python manage.py dumpdata > backup_data_$(date +%Y%m%d).json
 git add backup_data_*.json
 git commit -m "Database backup $(date +%Y-%m-%d)"
 git push origin main
+
+
+
+NEW::
+
+End of session code:
+
+git add .
+git commit -m "Description of what you did"
+git push origin main
+
+
+ADDING NEW EVENTS - NOT AUTOMATED:
+
+source .venv/bin/activate
+python manage.py import_external_events
+python manage.py scrape_baltimore_venues

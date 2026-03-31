@@ -14,6 +14,8 @@ const CreateEventModal = ({ isOpen, onClose, onCreateEvent }) => {
     lat: 39.2904,
     lng: -76.6122
   });
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -235,28 +237,28 @@ const CreateEventModal = ({ isOpen, onClose, onCreateEvent }) => {
     try {
       const token = localStorage.getItem('token');
 
-      const apiData = {
-        title: formData.title,
-        venue_name: formData.venue,
-        address: formData.venue,
-        city: formData.city || 'Baltimore',
-        category: formData.category,
-        subcategory: formData.subcategory || '',
-        description: formData.description || '',
-        latitude: parseFloat(formData.lat).toFixed(6),
-        longitude: parseFloat(formData.lng).toFixed(6),
-        start_time: formData.time,
-        end_time: calculateEndTime(formData.time, formData.duration),
-        min_attendees: formData.min_attendees,
-        max_attendees: formData.max_attendees
-      };
+      const apiData = new FormData();
+      apiData.append('title', formData.title);
+      apiData.append('venue_name', formData.venue);
+      apiData.append('address', formData.venue);
+      apiData.append('city', formData.city || 'Baltimore');
+      apiData.append('category', formData.category);
+      apiData.append('subcategory', formData.subcategory || '');
+      apiData.append('description', formData.description || '');
+      apiData.append('latitude', parseFloat(formData.lat).toFixed(6));
+      apiData.append('longitude', parseFloat(formData.lng).toFixed(6));
+      apiData.append('start_time', formData.time);
+      apiData.append('end_time', calculateEndTime(formData.time, formData.duration));
+      apiData.append('min_attendees', formData.min_attendees);
+      if (formData.max_attendees) apiData.append('max_attendees', formData.max_attendees);
+      if (imageFile) apiData.append('image', imageFile);
 
-      console.log('Sending data:', apiData);
+      console.log('Sending data with image:', imageFile?.name);
 
       const response = await fetch('http://localhost:8000/api/events/', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Token ${token}` },
-        body: JSON.stringify(apiData)
+        headers: { 'Authorization': `Token ${token}` },
+        body: apiData
       });
 
       const data = await response.json();
@@ -277,6 +279,8 @@ const CreateEventModal = ({ isOpen, onClose, onCreateEvent }) => {
           lat: 39.2904,
           lng: -76.6122
         });
+        setImageFile(null);
+        setImagePreview(null);
         onClose();
       } else {
         setError(JSON.stringify(data));
@@ -583,6 +587,68 @@ const CreateEventModal = ({ isOpen, onClose, onCreateEvent }) => {
                 }}
               />
             </div>
+          </div>
+
+          {/* Photo Upload */}
+          <div style={{ marginBottom: '32px' }}>
+            <label style={{
+              display: 'block', marginBottom: '8px',
+              fontSize: '13px', fontWeight: '800', color: colors.textMain,
+              textTransform: 'uppercase', letterSpacing: '0.5px'
+            }}>Event Photo <span style={{ color: colors.textMuted, fontWeight: '500', textTransform: 'none' }}>(optional)</span></label>
+
+            {imagePreview ? (
+              <div style={{ position: 'relative' }}>
+                <img
+                  src={imagePreview}
+                  alt="Preview"
+                  style={{
+                    width: '100%', height: '160px',
+                    objectFit: 'cover', borderRadius: '16px',
+                    display: 'block'
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => { setImageFile(null); setImagePreview(null); }}
+                  style={{
+                    position: 'absolute', top: '10px', right: '10px',
+                    background: 'rgba(0,0,0,0.6)', border: 'none',
+                    borderRadius: '8px', color: 'white',
+                    padding: '4px 10px', fontSize: '12px', fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <label style={{
+                display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center',
+                height: '100px', borderRadius: '16px',
+                border: `2px dashed ${colors.textMuted}`,
+                cursor: 'pointer', gap: '8px',
+                backgroundColor: colors.inputBg,
+              }}>
+                <span style={{ fontSize: '28px' }}>📷</span>
+                <span style={{ fontSize: '13px', color: colors.textMuted, fontWeight: '600' }}>
+                  Click to upload a photo
+                </span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      setImageFile(file);
+                      setImagePreview(URL.createObjectURL(file));
+                    }
+                  }}
+                />
+              </label>
+            )}
           </div>
 
           <button

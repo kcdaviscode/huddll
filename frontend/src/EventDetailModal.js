@@ -5,111 +5,6 @@ import AddFriendButton from './AddFriendButton';
 import CreateHuddllModal from './CreateHuddllModal';
 import theme from './theme';
 
-// FIX #3 — Moved outside EventDetailModal so it doesn't remount on every render
-const AttendeeCard = ({ userId }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const currentUserId = JSON.parse(localStorage.getItem('user') || '{}').id;
-
-  useEffect(() => {
-    fetchUser();
-  }, [userId]);
-
-  const fetchUser = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8000/api/users/${userId}/`, {
-        headers: { 'Authorization': `Token ${token}` }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data);
-      }
-    } catch (error) {
-      console.error('Error fetching user:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading || !user) return null;
-  if (userId === currentUserId) return null;
-
-  const displayName = user.first_name && user.last_name
-    ? `${user.first_name} ${user.last_name}`
-    : user.username;
-  const avatar = user.first_name
-    ? user.first_name[0].toUpperCase()
-    : user.username[0].toUpperCase();
-
-  return (
-    <div style={{
-      background: theme.slateLight,
-      borderRadius: '12px',
-      padding: '12px',
-      border: `1px solid ${theme.border}`,
-      display: 'flex',
-      alignItems: 'center',
-      gap: '10px'
-    }}>
-      {user.profile_photo_url ? (
-        <div style={{
-          width: '40px',
-          height: '40px',
-          borderRadius: '10px',
-          backgroundImage: `url(${user.profile_photo_url})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          flexShrink: 0
-        }} />
-      ) : (
-        <div style={{
-          width: '40px',
-          height: '40px',
-          borderRadius: '10px',
-          background: theme.accentGradient,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '16px',
-          fontWeight: '700',
-          color: 'white',
-          flexShrink: 0
-        }}>
-          {avatar}
-        </div>
-      )}
-
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{
-          fontSize: '14px',
-          fontWeight: '600',
-          color: theme.textMain,
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis'
-        }}>
-          {displayName}
-        </div>
-        {user.city && (
-          <div style={{
-            fontSize: '12px',
-            color: theme.textSecondary,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis'
-          }}>
-            {user.city}
-          </div>
-        )}
-      </div>
-
-      <AddFriendButton userId={userId} compact={true} />
-    </div>
-  );
-};
-
 const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
   const [joining, setJoining] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -122,6 +17,7 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
     setError('');
     setShowDeleteConfirm(false);
 
+    // Check if user is going to this external event
     if (event?.type === 'external') {
       checkExternalEventInterest();
     }
@@ -144,6 +40,111 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
   };
 
   if (!isOpen || !event) return null;
+
+  // Attendee Card Component
+  const AttendeeCard = ({ userId }) => {
+    const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const currentUserId = JSON.parse(localStorage.getItem('user') || '{}').id;
+
+    useEffect(() => {
+      fetchUser();
+    }, [userId]);
+
+    const fetchUser = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`http://localhost:8000/api/users/${userId}/`, {
+          headers: { 'Authorization': `Token ${token}` }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setUser(data);
+        }
+      } catch (error) {
+        console.error('Error fetching user:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (loading || !user) return null;
+    if (userId === currentUserId) return null; // Don't show yourself
+
+    const displayName = user.first_name && user.last_name
+      ? `${user.first_name} ${user.last_name}`
+      : user.username;
+    const avatar = user.first_name
+      ? user.first_name[0].toUpperCase()
+      : user.username[0].toUpperCase();
+
+    return (
+      <div style={{
+        background: theme.slateLight,
+        borderRadius: '12px',
+        padding: '12px',
+        border: `1px solid ${theme.border}`,
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px'
+      }}>
+        {user.profile_photo_url ? (
+          <div style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: '10px',
+            backgroundImage: `url(${user.profile_photo_url})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            flexShrink: 0
+          }} />
+        ) : (
+          <div style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: '10px',
+            background: theme.accentGradient,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '16px',
+            fontWeight: '700',
+            color: 'white',
+            flexShrink: 0
+          }}>
+            {avatar}
+          </div>
+        )}
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{
+            fontSize: '14px',
+            fontWeight: '600',
+            color: theme.textMain,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
+          }}>
+            {displayName}
+          </div>
+          {user.city && (
+            <div style={{
+              fontSize: '12px',
+              color: theme.textSecondary,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}>
+              {user.city}
+            </div>
+          )}
+        </div>
+
+        <AddFriendButton userId={userId} compact={true} />
+      </div>
+    );
+  };
 
   const getCategoryEmoji = (category) => {
     const emojiMap = {
@@ -196,7 +197,6 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
 
       const data = await response.json();
 
-      // FIX #1 — Removed onClose() so modal stays open after joining
       if (response.ok) {
         if (onEventUpdated) onEventUpdated();
       } else {
@@ -222,7 +222,6 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
         }
       });
 
-      // FIX #1 — Removed onClose() so modal stays open after leaving
       if (response.ok) {
         if (onEventUpdated) onEventUpdated();
       } else {
@@ -323,6 +322,7 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
     if (onEventUpdated) onEventUpdated();
   };
 
+  // Get location display - handle different field names
   const getLocationName = () => {
     return event.venue_name || event.location_name || event.venue || 'Location TBD';
   };
@@ -360,6 +360,50 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
         }}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* EVENT IMAGE BANNER — only shown if image exists */}
+        {(() => {
+          const imgSrc = event.image_url ||
+            (event.image ? `http://localhost:8000${event.image}` : null);
+          return imgSrc ? (
+            <div style={{
+              width: '100%',
+              height: '200px',
+              backgroundImage: `url(${imgSrc})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              borderTopLeftRadius: '32px',
+              borderTopRightRadius: '32px',
+              position: 'relative',
+              flexShrink: 0,
+            }}>
+              <div style={{
+                position: 'absolute',
+                bottom: 0, left: 0, right: 0,
+                height: '60px',
+                background: `linear-gradient(to top, ${theme.bgPrimary}, transparent)`,
+              }} />
+              <button
+                onClick={onClose}
+                style={{
+                  position: 'absolute',
+                  top: '16px', right: '16px',
+                  width: '36px', height: '36px',
+                  borderRadius: '10px',
+                  background: 'rgba(0,0,0,0.5)',
+                  border: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  backdropFilter: 'blur(4px)',
+                }}
+              >
+                <X size={18} color="white" />
+              </button>
+            </div>
+          ) : null;
+        })()}
+
         {/* HEADER */}
         <div style={{
           padding: '28px 32px 24px',
@@ -367,12 +411,16 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
           position: 'sticky',
           top: 0,
           background: theme.bgPrimary,
-          borderTopLeftRadius: '32px',
-          borderTopRightRadius: '32px',
+          borderTopLeftRadius: (event.image_url || event.image) ? '0' : '32px',
+          borderTopRightRadius: (event.image_url || event.image) ? '0' : '32px',
           zIndex: 10
         }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
-            <div style={{ fontSize: '56px', lineHeight: 1, flexShrink: 0 }}>
+            <div style={{
+              fontSize: '56px',
+              lineHeight: 1,
+              flexShrink: 0
+            }}>
               {event.emoji || getCategoryEmoji(event.category)}
             </div>
 
@@ -399,6 +447,8 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
               )}
             </div>
 
+            {/* Only show close button here when no image — image has its own */}
+            {!event.image_url && !event.image && (
             <button
               onClick={onClose}
               style={{
@@ -419,6 +469,7 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
             >
               <X size={22} color={theme.textMain} />
             </button>
+            )}
           </div>
 
           {/* Error Display */}
@@ -502,7 +553,7 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
           flexDirection: 'column'
         }}>
 
-          {/* EVENT DETAILS */}
+          {/* EVENT DETAILS SECTION */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '32px' }}>
 
             {/* Location Row */}
@@ -615,16 +666,15 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
                 <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: theme.textMain }}>
                   Who's Going?
                 </h3>
-                {/* FIX #4 — Show real count, not || 1 fallback */}
                 <p style={{ margin: '2px 0 0 0', fontSize: '14px', color: theme.textSecondary }}>
-                  {event.interested_count || 0} {(event.interested_count || 0) === 1 ? 'person' : 'people'} interested
+                  {event.interested_count || 1} {(event.interested_count || 1) === 1 ? 'person' : 'people'} interested
                 </p>
               </div>
             </div>
 
           </div>
 
-          {/* ATTENDEES LIST */}
+          {/* ATTENDEES SECTION - only for user events with attendees */}
           {event.type !== 'external' && event.interested_user_ids && event.interested_user_ids.length > 0 && (
             <div style={{
               marginBottom: '32px',
@@ -663,10 +713,10 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
 
           {/* ACTION BUTTONS */}
           <div style={{ marginTop: 'auto' }}>
-
-            {/* EXTERNAL EVENTS */}
+            {/* TICKETMASTER/EXTERNAL EVENTS */}
             {event.type === 'external' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {/* I'm Going / You're Going Button */}
                 {userGoingToExternal ? (
                   <div>
                     <button
@@ -701,7 +751,7 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
                         cursor: joining ? 'not-allowed' : 'pointer',
                       }}
                     >
-                      {joining ? 'Removing...' : "Can't Make It"}
+                      {joining ? 'Removing...' : 'Can\'t Make It'}
                     </button>
                   </div>
                 ) : (
@@ -725,10 +775,11 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
                     onMouseUp={(e) => !joining && (e.currentTarget.style.transform = 'scale(1)')}
                     onMouseLeave={(e) => !joining && (e.currentTarget.style.transform = 'scale(1)')}
                   >
-                    {joining ? 'Saving...' : "I'm Going!"}
+                    {joining ? 'Saving...' : 'I\'m Going!'}
                   </button>
                 )}
 
+                {/* Create Huddll Button */}
                 <button
                   onClick={() => setShowCreateHuddll(true)}
                   style={{
@@ -751,6 +802,7 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
                   🎉 Create Huddll for this Event
                 </button>
 
+                {/* Get Tickets Button */}
                 {event.ticket_url && (
                   <a
                     href={event.ticket_url}
@@ -792,7 +844,7 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
               </div>
             )}
 
-            {/* USER-CREATED EVENTS */}
+            {/* USER-CREATED EVENTS - Join/Leave Buttons */}
             {event.type !== 'external' && (
               <>
                 {isEventCreator() ? (
@@ -867,7 +919,7 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
                         cursor: joining ? 'not-allowed' : 'pointer',
                       }}
                     >
-                      {joining ? 'Leaving...' : "Can't Make It"}
+                      {joining ? 'Leaving...' : 'Can\'t Make It'}
                     </button>
                   </div>
                 ) : (
@@ -892,15 +944,15 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
                     onMouseUp={(e) => !joining && (e.currentTarget.style.transform = 'scale(1)')}
                     onMouseLeave={(e) => !joining && (e.currentTarget.style.transform = 'scale(1)')}
                   >
-                    {joining ? 'Joining...' : "I'm Going!"}
+                    {joining ? 'Joining...' : 'I\'m Going!'}
                   </button>
                 )}
               </>
             )}
           </div>
 
-          {/* FIX #2 — Chat now visible to creator too, not just interested users */}
-          {(isUserInterested() || isEventCreator()) && event.type !== 'external' && (
+          {/* EVENT CHAT */}
+          {isUserInterested() && (
             <div style={{ marginTop: '32px', paddingTop: '32px', borderTop: `1px solid ${theme.border}` }}>
               <h3 style={{
                 margin: '0 0 16px 0',
@@ -920,6 +972,7 @@ const EventDetailModal = ({ event, isOpen, onClose, onEventUpdated }) => {
         </div>
       </div>
 
+      {/* CREATE HUDDLL MODAL */}
       {showCreateHuddll && (
         <CreateHuddllModal
           parentEvent={event}

@@ -7,7 +7,7 @@ from django.utils import timezone
 from users.models import User
 from notifications.models import Notification
 from connections.models import Connection
-from .models import Event, EventInterest, CheckIn, EventChat, ExternalEvent
+from .models import Event, EventInterest, CheckIn, EventChat, ExternalEvent, PlaceCache
 from .serializers import (
     EventListSerializer,
     EventDetailSerializer,
@@ -28,7 +28,13 @@ class EventViewSet(viewsets.ModelViewSet):
         return EventDetailSerializer
 
     def get_queryset(self):
-        queryset = Event.objects.filter(status='published').annotate(
+        queryset = Event.objects.filter(
+            status='published'
+        ).exclude(
+            type='huddll'  # Don't show private Huddlls on public map
+        ).prefetch_related(
+            'interests'  # Eliminate N+1 query
+        ).annotate(
             attendee_count=Count('checkins', distinct=True),
             interested_count=Count('interests', distinct=True)
         )
@@ -344,3 +350,30 @@ def get_huddlls_for_event(request, event_id):
         return Response(huddlls_data, status=status.HTTP_200_OK)
     except Event.DoesNotExist:
         return Response({'error': 'Event not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_places(request):
+    """
+    Serve cached places from the database.
+    No Google API calls at runtime — all data is pre-imported.
+
+    Query params:
+        types: comma-separated list of place types (bar, restaurant, park, event_venue)
+               defaults to all types if not specified
+    """
+    type_param = request.GET.get('types', '')
+
+    places = PlaceCache.objects.filter(is_active=True)
+
+    if type_param:
+        requested_types = [t.strip() for t in type_param.split(',') if t.strip()]
+        places = places.filter(place_type__in=requested_types)
+
+    places_data = [place.to_dict() for place in places]
+
+    return Response({
+        'count': len(places_data),
+        'places': places_data
+    })

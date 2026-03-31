@@ -229,6 +229,16 @@ class ExternalEvent(models.Model):
     SOURCE_CHOICES = [
         ('ticketmaster', 'Ticketmaster'),
         ('eventbrite', 'Eventbrite'),
+        ('walters', 'Walters Art Museum'),
+        ('bma', 'Baltimore Museum of Art'),
+        ('ottobar', 'Ottobar'),
+        ('keystone', 'Keystone Korner'),
+        ('andiemusik', 'An Die Musik'),
+        ('metro', 'Metro Baltimore'),
+        ('the8x10', 'The 8x10'),
+        ('creativealliance', 'Creative Alliance'),
+        ('mdhs', 'MD Center for History'),
+        ('avm', 'American Visionary Art Museum'),
     ]
 
     # External identifiers
@@ -320,3 +330,60 @@ class HuddllForExternalEvent(models.Model):
 
     def __str__(self):
         return f"Huddll for {self.external_event.title}"
+
+class PlaceCache(models.Model):
+    """
+    Cached Google Places results — imported manually via management command.
+    Serves places to the frontend at zero runtime API cost.
+    """
+    PLACE_TYPE_CHOICES = [
+        ('bar', 'Bar'),
+        ('restaurant', 'Restaurant'),
+        ('park', 'Park'),
+        ('event_venue', 'Event Venue'),
+    ]
+
+    place_id = models.CharField(max_length=200, unique=True)
+    name = models.CharField(max_length=200)
+    place_type = models.CharField(max_length=50, choices=PLACE_TYPE_CHOICES)
+    address = models.CharField(max_length=300, blank=True)
+    city = models.CharField(max_length=100, default='Baltimore')
+    latitude = models.DecimalField(max_digits=9, decimal_places=6)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6)
+    rating = models.FloatField(null=True, blank=True)
+    rating_count = models.IntegerField(null=True, blank=True)
+    price_level = models.IntegerField(null=True, blank=True)
+    is_open_now = models.BooleanField(null=True, blank=True)
+    photo_url = models.URLField(blank=True, null=True)
+    google_maps_url = models.URLField(blank=True, null=True)
+    phone_number = models.CharField(max_length=30, blank=True)
+    website = models.URLField(blank=True, null=True)
+    imported_at = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['-rating']
+        indexes = [
+            models.Index(fields=['place_type', 'is_active']),
+            models.Index(fields=['latitude', 'longitude']),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.place_type})"
+
+    def to_dict(self):
+        return {
+            'id': self.place_id,
+            'name': self.name,
+            'place_type': self.place_type,
+            'address': self.address,
+            'latitude': float(self.latitude),
+            'longitude': float(self.longitude),
+            'rating': self.rating,
+            'rating_count': self.rating_count,
+            'price_level': self.price_level,
+            'photo_url': self.photo_url,
+            'google_maps_url': self.google_maps_url,
+            'phone_number': self.phone_number,
+            'website': self.website,
+        }

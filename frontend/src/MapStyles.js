@@ -9,8 +9,12 @@ export const DarkMapStyle = [
   },
   {
     featureType: "poi",
-    elementType: "labels.text.fill",
-    stylers: [{ color: "#d59563" }],
+    elementType: "labels",
+    stylers: [{ visibility: "off" }],
+  },
+  {
+    featureType: "poi.business",
+    stylers: [{ visibility: "off" }],
   },
   {
     featureType: "poi.park",

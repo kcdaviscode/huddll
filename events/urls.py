@@ -6,6 +6,9 @@ router = DefaultRouter()
 router.register(r'events', views.EventViewSet, basename='event')
 
 urlpatterns = [
+    # Cached places endpoint (bars, restaurants, parks, venues)
+    path('places/', views.get_places, name='get_places'),
+
     # External events endpoint
     path('external/', views.get_external_events, name='external_events'),
 

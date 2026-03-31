@@ -7,14 +7,15 @@ const FilterPanel = ({ filters, onFilterChange }) => {
   // Initialize pendingFilters with proper eventType default
   const [pendingFilters, setPendingFilters] = useState({
     ...filters,
-    eventType: filters.eventType || 'all'
+    eventType: filters.eventType || 'all',
+    placeTypes: filters.placeTypes || []
   });
 
-  // Update pendingFilters when filters prop changes
   useEffect(() => {
     setPendingFilters({
       ...filters,
-      eventType: filters.eventType || 'all'
+      eventType: filters.eventType || 'all',
+      placeTypes: filters.placeTypes || []
     });
   }, [filters]);
 
@@ -138,10 +139,21 @@ const FilterPanel = ({ filters, onFilterChange }) => {
       timeRange: 'all',
       statuses: ['proposed', 'pending', 'active'],
       distance: 'all',
-      eventType: 'all'
+      eventType: 'all',
+      placeTypes: []
     };
     setPendingFilters(clearedFilters);
     onFilterChange(clearedFilters);
+  };
+
+  const togglePlaceType = (type) => {
+    const current = pendingFilters.placeTypes || [];
+    const updated = current.includes(type)
+      ? current.filter(t => t !== type)
+      : [...current, type];
+    const newFilters = { ...pendingFilters, placeTypes: updated };
+    setPendingFilters(newFilters);
+    onFilterChange(newFilters); // Apply immediately for places
   };
 
   const activeFilterCount =
@@ -149,7 +161,8 @@ const FilterPanel = ({ filters, onFilterChange }) => {
     (filters.subcategories?.length || 0) +
     (filters.timeRange !== 'all' ? 1 : 0) +
     (3 - filters.statuses.length) +
-    ((filters.eventType && filters.eventType !== 'all') ? 1 : 0);
+    ((filters.eventType && filters.eventType !== 'all') ? 1 : 0) +
+    (filters.placeTypes?.length || 0);
 
   const getAvailableSubcategories = () => {
     if (pendingFilters.categories.length === 0) return [];
@@ -282,7 +295,7 @@ const FilterPanel = ({ filters, onFilterChange }) => {
                 }}
               >
                 <span style={{ fontSize: '16px' }}>👥</span>
-                <span>My Huddlls</span>
+                <span>Hosted Huddlls</span>
               </button>
 
               <button
@@ -502,6 +515,59 @@ const FilterPanel = ({ filters, onFilterChange }) => {
                   {option.label}
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Show Places Section */}
+          <div style={{ marginBottom: '24px' }}>
+            <label style={{
+              display: 'block',
+              marginBottom: '8px',
+              fontSize: '13px',
+              fontWeight: '800',
+              color: theme.textMain,
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+              textAlign: 'center'
+            }}>
+              Show On Map
+            </label>
+            <div style={{ fontSize: '11px', color: theme.textSecondary, textAlign: 'center', marginBottom: '12px' }}>
+              Adds local spots to map — off by default
+            </div>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
+              {[
+                { id: 'bars', label: 'Bars', emoji: '🍺' },
+                { id: 'restaurants', label: 'Food', emoji: '🍽️' },
+                { id: 'parks', label: 'Parks', emoji: '🌳' },
+                { id: 'venues', label: 'Venues', emoji: '🎭' },
+              ].map(place => {
+                const active = (pendingFilters.placeTypes || []).includes(place.id);
+                const COLORS = { bars: '#FF6B6B', restaurants: '#FFB347', parks: '#6BCB77', venues: '#C77DFF' };
+                const color = COLORS[place.id];
+                return (
+                  <button
+                    key={place.id}
+                    onClick={() => togglePlaceType(place.id)}
+                    style={{
+                      padding: '10px 16px',
+                      borderRadius: '50px',
+                      border: `2px solid ${active ? color : theme.border}`,
+                      fontSize: '14px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      background: active ? `${color}20` : theme.slateLight,
+                      color: active ? color : theme.textSecondary,
+                      transition: 'all 0.2s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                  >
+                    {place.emoji} {place.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 

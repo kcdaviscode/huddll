@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { GoogleMap, Marker, InfoWindow, Circle } from '@react-google-maps/api';
-import { MapPin, Clock, Users, ArrowRight, Plus, Navigation } from 'lucide-react';
+import { MapPin, Clock, Users, ArrowRight, Plus, Navigation, List, X } from 'lucide-react';
 import Header from './Header';
 import CreateEventModal from './CreateEventModal';
 import FilterPanel from './FilterPanel';
@@ -28,8 +28,15 @@ const MapView = () => {
     timeRange: 'all',
     statuses: ['proposed', 'pending', 'active'],
     distance: 'all',
-    eventType: 'all'
+    eventType: 'all',
+    placeTypes: []  // empty = no places shown by default
   });
+
+  const [showListPanel, setShowListPanel] = useState(false);
+  const [listPanelMinimized, setListPanelMinimized] = useState(false);
+  const [selectedCard, setSelectedCard] = useState(null);
+  const [places, setPlaces] = useState([]);
+  const [selectedPlace, setSelectedPlace] = useState(null);
 
   const mapStyles = {
     height: "calc(100vh - 150px)",
@@ -163,6 +170,32 @@ const MapView = () => {
       setLoading(false);
     }
   };
+
+  const fetchPlaces = (placeTypes, center) => {
+    if (!placeTypes || placeTypes.length === 0) {
+      setPlaces([]);
+      return;
+    }
+
+    const TYPE_MAP = {
+      bars: 'bar',
+      restaurants: 'restaurant',
+      parks: 'park',
+      venues: 'event_venue',
+    };
+
+    const types = placeTypes.map(t => TYPE_MAP[t]).filter(Boolean).join(',');
+
+    fetch(`http://localhost:8000/api/places/?types=${types}`)
+      .then(r => r.json())
+      .then(data => setPlaces(data.places || []))
+      .catch(err => console.error('Places fetch error:', err));
+  };
+
+  // Refetch places when placeTypes filter changes
+  useEffect(() => {
+    fetchPlaces(filters.placeTypes, mapCenter);
+  }, [filters.placeTypes]);
 
   const applyFilters = () => {
     let filtered = [...events];
@@ -551,6 +584,97 @@ const MapView = () => {
             />
           ))}
 
+          {/* PLACE MARKERS */}
+          {places.map(place => {
+            const PLACE_COLORS = {
+              bar: '#FF6B6B',
+              restaurant: '#FFB347',
+              park: '#6BCB77',
+              event_venue: '#C77DFF',
+            };
+            const PLACE_EMOJI = {
+              bar: '🍺',
+              restaurant: '🍽️',
+              park: '🌳',
+              event_venue: '🎭',
+            };
+            const color = PLACE_COLORS[place.place_type] || '#ffffff';
+            return (
+              <Marker
+                key={`place-${place.id}`}
+                position={{ lat: place.latitude, lng: place.longitude }}
+                onClick={() => setSelectedPlace(place)}
+                icon={{
+                  path: window.google.maps.SymbolPath.CIRCLE,
+                  scale: 10,
+                  fillColor: color,
+                  fillOpacity: 0.9,
+                  strokeColor: theme.deepNavy,
+                  strokeWeight: 2,
+                }}
+                label={{
+                  text: PLACE_EMOJI[place.place_type] || '📍',
+                  fontSize: '14px',
+                }}
+              />
+            );
+          })}
+
+          {/* PLACE INFO POPUP */}
+          {selectedPlace && (
+            <InfoWindow
+              position={{ lat: selectedPlace.latitude, lng: selectedPlace.longitude }}
+              onCloseClick={() => setSelectedPlace(null)}
+              options={{ pixelOffset: new window.google.maps.Size(0, -20) }}
+            >
+              <div style={{
+                minWidth: '220px',
+                padding: '14px',
+                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                backgroundColor: theme.slateLight,
+                borderRadius: '14px',
+              }}>
+                {selectedPlace.photo_url && (
+                  <img
+                    src={selectedPlace.photo_url}
+                    alt={selectedPlace.name}
+                    style={{ width: '100%', height: '100px', objectFit: 'cover', borderRadius: '10px', marginBottom: '10px' }}
+                  />
+                )}
+                <div style={{ fontSize: '15px', fontWeight: '800', color: theme.textMain, marginBottom: '4px' }}>
+                  {selectedPlace.name}
+                </div>
+                {selectedPlace.address && (
+                  <div style={{ fontSize: '12px', color: theme.textSecondary, marginBottom: '6px' }}>
+                    {selectedPlace.address}
+                  </div>
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  {selectedPlace.rating && (
+                    <span style={{ fontSize: '12px', color: '#FFD700', fontWeight: '700' }}>
+                      ⭐ {selectedPlace.rating} {selectedPlace.rating_count ? `(${selectedPlace.rating_count})` : ''}
+                    </span>
+                  )}
+                  {selectedPlace.price_level && (
+                    <span style={{ fontSize: '12px', color: theme.textSecondary }}>
+                      {'$'.repeat(selectedPlace.price_level)}
+                    </span>
+                  )}
+                </div>
+                {selectedPlace.google_maps_url && (
+                  <a
+                    href={selectedPlace.google_maps_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ display: 'block', marginTop: '8px', fontSize: '12px', color: theme.skyBlue, textDecoration: 'none', fontWeight: '600' }}
+                  >
+                    View on Google Maps →
+                  </a>
+                )}
+              </div>
+            </InfoWindow>
+          )}
+
           {selectedEvent && (
             <InfoWindow
               position={{ lat: parseFloat(selectedEvent.latitude), lng: parseFloat(selectedEvent.longitude) }}
@@ -676,7 +800,316 @@ const MapView = () => {
         </GoogleMap>
       </div>
 
-      {/* Recenter Button */}
+      {/* List View Toggle Button */}
+      <button
+        onClick={() => {
+          setShowListPanel(prev => !prev);
+          setListPanelMinimized(false);
+        }}
+        style={{
+          position: 'fixed',
+          top: '140px',
+          right: '24px',
+          background: showListPanel ? theme.skyBlue : theme.slateLight,
+          color: showListPanel ? 'white' : theme.skyBlue,
+          padding: '10px 16px',
+          borderRadius: '50px',
+          border: `1px solid ${showListPanel ? theme.skyBlue : theme.border}`,
+          cursor: 'pointer',
+          boxShadow: `0 4px 16px rgba(0,0,0,0.4)`,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          zIndex: 1001,
+          fontSize: '13px',
+          fontWeight: '700',
+          transition: 'all 0.2s',
+        }}
+      >
+        <List size={16} strokeWidth={2.5} />
+        {showListPanel ? 'Map Only' : `List (${visibleEvents.length})`}
+      </button>
+
+      {/* Sliding List Panel */}
+      <div style={{
+        position: 'fixed',
+        top: '130px',
+        right: showListPanel ? '0px' : '-400px',
+        width: '380px',
+        bottom: '80px',
+        background: theme.bgPrimary,
+        borderLeft: `1px solid ${theme.border}`,
+        borderTopLeftRadius: '24px',
+        boxShadow: `-8px 0 40px rgba(0,0,0,0.4)`,
+        zIndex: 1000,
+        display: 'flex',
+        flexDirection: 'column',
+        transition: 'right 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+        overflow: 'hidden',
+      }}>
+
+        {/* Panel Header */}
+        <div style={{
+          padding: '20px 20px 16px',
+          borderBottom: `1px solid ${theme.border}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexShrink: 0,
+          background: theme.bgPrimary,
+        }}>
+          <div>
+            <div style={{ fontSize: '18px', fontWeight: '800', color: theme.textMain }}>
+              Events Near You
+            </div>
+            <div style={{ fontSize: '12px', color: theme.textSecondary, marginTop: '2px' }}>
+              {visibleEvents.length} {visibleEvents.length === 1 ? 'event' : 'events'} in view · pan map to update
+            </div>
+          </div>
+          <button
+            onClick={() => setShowListPanel(false)}
+            style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '10px',
+              background: theme.slateLight,
+              border: `1px solid ${theme.border}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              flexShrink: 0,
+            }}
+          >
+            <X size={16} color={theme.textMain} />
+          </button>
+        </div>
+
+        {/* Event Cards */}
+        <div style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '12px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '10px',
+        }}>
+          {visibleEvents.length === 0 ? (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: '100%',
+              gap: '12px',
+              color: theme.textSecondary,
+            }}>
+              <div style={{ fontSize: '40px' }}>🗺️</div>
+              <div style={{ fontSize: '15px', fontWeight: '700', color: theme.textMain }}>No events in view</div>
+              <div style={{ fontSize: '13px', textAlign: 'center' }}>Pan or zoom the map to find events nearby</div>
+            </div>
+          ) : (
+            visibleEvents
+              .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))
+              .map((event) => {
+                const isExternal = event.type === 'external';
+                const cardKey = isExternal ? `ext-${event.id}` : `user-${event.id}`;
+                const isSelected = selectedCard === cardKey;
+
+                return (
+                  <div
+                    key={cardKey}
+                    onClick={() => {
+                      setSelectedCard(cardKey);
+                      setDetailModalEvent(event);
+                    }}
+                    style={{
+                      background: isSelected ? theme.slateLight : theme.slate,
+                      borderRadius: '16px',
+                      padding: '16px',
+                      border: `1px solid ${isSelected ? theme.skyBlue : theme.border}`,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      flexShrink: 0,
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSelected) {
+                        e.currentTarget.style.borderColor = theme.skyBlue + '80';
+                        e.currentTarget.style.transform = 'translateX(-3px)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSelected) {
+                        e.currentTarget.style.borderColor = theme.border;
+                        e.currentTarget.style.transform = 'translateX(0)';
+                      }
+                    }}
+                  >
+                    {/* Card Image — shown if available, hidden if not */}
+                    {(() => {
+                      const imgSrc = event.image_url ||
+                        (event.image ? `http://localhost:8000${event.image}` : null);
+                      return imgSrc ? (
+                        <div style={{
+                          width: '100%',
+                          height: '120px',
+                          borderRadius: '10px',
+                          backgroundImage: `url(${imgSrc})`,
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center',
+                          marginBottom: '12px',
+                          flexShrink: 0,
+                          position: 'relative',
+                          overflow: 'hidden',
+                        }}>
+                          {/* Emoji overlay bottom-left */}
+                          <div style={{
+                            position: 'absolute',
+                            bottom: '8px',
+                            left: '10px',
+                            fontSize: '24px',
+                            lineHeight: 1,
+                            filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.6))'
+                          }}>
+                            {event.emoji || getCategoryEmoji(event.category)}
+                          </div>
+                        </div>
+                      ) : null;
+                    })()}
+
+                    {/* Card Top Row */}
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                      {/* Only show big emoji if no image */}
+                      {!event.image_url && !event.image && (
+                        <div style={{
+                          fontSize: '36px',
+                          lineHeight: 1,
+                          flexShrink: 0,
+                          marginTop: '2px',
+                        }}>
+                          {event.emoji || getCategoryEmoji(event.category)}
+                        </div>
+                      )}
+
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{
+                          fontSize: '15px',
+                          fontWeight: '800',
+                          color: theme.textMain,
+                          marginBottom: '4px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          lineHeight: '1.3',
+                        }}>
+                          {event.title}
+                        </div>
+
+                        {/* Venue */}
+                        <div style={{
+                          fontSize: '12px',
+                          color: theme.textSecondary,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          marginBottom: '4px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}>
+                          <MapPin size={11} />
+                          {event.venue_name || event.location_name || event.city || 'Location TBD'}
+                        </div>
+
+                        {/* Time */}
+                        <div style={{
+                          fontSize: '12px',
+                          color: theme.textSecondary,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}>
+                          <Clock size={11} />
+                          {formatEventTime(event.start_time)}
+                        </div>
+                      </div>
+
+                      <ArrowRight size={16} color={theme.skyBlue} style={{ flexShrink: 0, marginTop: '4px' }} />
+                    </div>
+
+                    {/* Card Bottom Row — badges */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      marginTop: '12px',
+                      flexWrap: 'wrap',
+                    }}>
+                      {isExternal ? (
+                        <span style={{
+                          background: '#FFD70020',
+                          color: '#FFD700',
+                          border: '1px solid #FFD70040',
+                          fontSize: '10px',
+                          fontWeight: '800',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.3px',
+                        }}>
+                          🎫 Ticketmaster
+                        </span>
+                      ) : (
+                        <>
+                          <span style={{
+                            background: `${theme.skyBlue}20`,
+                            color: theme.skyBlue,
+                            border: `1px solid ${theme.skyBlue}40`,
+                            fontSize: '10px',
+                            fontWeight: '800',
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.3px',
+                          }}>
+                            Huddll
+                          </span>
+                          <span style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: '11px',
+                            color: theme.textSecondary,
+                          }}>
+                            <Users size={11} />
+                            {event.interested_count || 0} going
+                          </span>
+                        </>
+                      )}
+
+                      {event.category && (
+                        <span style={{
+                          background: theme.slateLight,
+                          color: theme.textSecondary,
+                          border: `1px solid ${theme.border}`,
+                          fontSize: '10px',
+                          fontWeight: '600',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          textTransform: 'capitalize',
+                        }}>
+                          {event.category}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+          )}
+        </div>
+      </div>
       <button
         onClick={handleRecenter}
         style={{
@@ -717,7 +1150,7 @@ const MapView = () => {
         style={{
           position: 'fixed',
           bottom: '120px',
-          right: '24px',
+          right: showListPanel ? '404px' : '24px',
           background: theme.accentGradient,
           color: 'white',
           padding: '16px 24px',
@@ -729,7 +1162,7 @@ const MapView = () => {
           alignItems: 'center',
           gap: '10px',
           zIndex: 1000,
-          transition: 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)',
+          transition: 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), right 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
         onMouseEnter={(e) => {
           e.currentTarget.style.transform = 'scale(1.05)';
@@ -754,9 +1187,8 @@ const MapView = () => {
         event={detailModalEvent ? events.find(e => e.id === detailModalEvent.id) || detailModalEvent : null}
         isOpen={!!detailModalEvent}
         onClose={() => {
-          // Just close detail modal, keep venue popup open if it was open
           setDetailModalEvent(null);
-          // selectedEvent stays open automatically!
+          setSelectedCard(null);
         }}
         onEventUpdated={fetchEvents}
       />
